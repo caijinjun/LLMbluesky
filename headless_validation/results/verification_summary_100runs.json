@@ -1,0 +1,21 @@
+{
+  "scenario": "BlueSky headless dynamic sector",
+  "strategy": "speed_first",
+  "runs": 100,
+  "passed": 100,
+  "failed": 0,
+  "total_loss_events": 0,
+  "max_fallback_calls": 0,
+  "avg_commands": 9.59,
+  "total_commands": 959,
+  "alt_commands": 527,
+  "spd_commands": 432,
+  "aggregate_result_file": "results/stress_test_100runs_speed_first_20260703_225029.json",
+  "notes": [
+    "Pending/unresolved-conflict release gates are not used in this version.",
+    "Entry safety gate is retained to avoid birth-time conflicts.",
+    "Speed actions are enabled by default and participate in optimization.",
+    "Unverified fallback is disabled; only forward-verified actions are executed."
+  ]
+}
+

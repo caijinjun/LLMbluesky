@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# BlueSky generated/runtime data
+bluesky_project/output/
+bluesky_project/data/cache/
+headless_validation/headless_dynamic_logs/
+
+# Large/generated visual assets
+*.bak
+bluesky_project/data/graphics/world.16384x8192.dds.bak
+bluesky_project/data/graphics/world.8192x4096.dds
+bluesky_project/data/graphics/world.jpg
+bluesky_project/data/navdata/apt.zip
+
+# Logs
+*.log
