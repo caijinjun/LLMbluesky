@@ -68,6 +68,40 @@ RUN_*.ps1              # Windows PowerShell 启动脚本
 README_DEMO.md         # 原始演示说明
 ```
 
+## 最新系统流程文档
+
+更详细的系统流程、模块边界、安全验证逻辑、LLM wrapper 约束和二次开发入口见：
+
+```text
+docs/SYSTEM_FLOW_DETAILED.md
+```
+
+当前版本的核心流程是：
+
+```text
+BlueSky 动态交通
+	↓
+ACDATA / synthetic fallback 获取飞机状态
+	↓
+CPA 预测冲突检测
+	↓
+构建冲突图
+	↓
+生成 hold / altitude / speed 候选动作
+	↓
+20 min 前向安全验证
+	↓
+离散约束搜索选择 verified actions
+	↓
+必要时 altitude reversal fallback / recovery altitude plan
+	↓
+LLM wrapper 只生成解释和标准话术
+	↓
+下发 verified BlueSky ALT / SPD 命令
+	↓
+HMI 表格、颜色、执行状态和 JSONL 日志更新
+```
+
 ## 设计边界
 
 LLM 层只负责解释和标准话术包装，不绕过安全验证。系统流程为：
