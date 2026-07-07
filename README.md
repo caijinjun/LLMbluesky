@@ -74,7 +74,10 @@ README_DEMO.md         # 原始演示说明
 
 ```text
 docs/SYSTEM_FLOW_DETAILED.md
+docs/SYSTEM_PIPELINE_DEEP_DIVE.md
 ```
+
+其中 `SYSTEM_FLOW_DETAILED.md` 偏系统总览，`SYSTEM_PIPELINE_DEEP_DIVE.md` 偏工程交接，逐阶段说明输入、处理、输出、关键函数、关键参数和调试路径。
 
 当前版本的核心流程是：
 
