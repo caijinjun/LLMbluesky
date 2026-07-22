@@ -14,11 +14,11 @@ from time import monotonic
 from urllib import request, error
 
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QTextCursor
+from PyQt5.QtGui import QColor, QTextCursor
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit,
     QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
-    QApplication, QSizePolicy, QDoubleSpinBox
+    QApplication, QSizePolicy, QDoubleSpinBox, QFrame, QFormLayout
 )
 import bluesky as bs
 from bluesky.ui.qtgl.customevents import ACDataEvent
@@ -172,9 +172,10 @@ class AiAssistPanel(QWidget):
 
     AIRCRAFT_TYPES = ["A320", "B738", "A319", "E190"]
 
-    def __init__(self, console, parent=None):
+    def __init__(self, console, radarwidget=None, parent=None):
         super(AiAssistPanel, self).__init__(parent)
         self.console = console
+        self.radarwidget = radarwidget
         self.rng = random.Random(20260703)
         self.current_map_key = self.DEFAULT_MAP_KEY
         self._apply_map_config(self.current_map_key)
@@ -212,6 +213,8 @@ class AiAssistPanel(QWidget):
         self._last_execution_update_ts = 0.0
         self._last_conflict_table_signature = None
         self._last_command_status_by_row = {}
+        self._status_tone_cache = {}
+        self._last_aircraft_table_signature = None
         self._tracked_safe_cache = {}
         self.reset_pending_until = 0.0
         self.pending_start = False
@@ -221,58 +224,479 @@ class AiAssistPanel(QWidget):
         self._ensure_stream_connection()
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(3)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-        self.setStyleSheet("QLabel { color: #1f2a22; } QGroupBox { color: #1f2a22; font-weight: bold; }")
+        self.setObjectName("aiAssistDashboard")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setStyleSheet("""
+            QWidget#aiAssistDashboard { background: #091017; }
+            QWidget { background: #091017; color: #d7e0e8; font-size: 12px; }
+            QFrame#topBar { background: #0b141d; border-bottom: 1px solid #263746; }
+            QFrame#sideRail, QFrame#bottomRail { background: #0c151d; border: 1px solid #263746; }
+            QLabel { background: transparent; color: #c8d3dc; }
+            QLabel#sectionTitle { color: #dce8f0; font-size: 13px; font-weight: 700; }
+            QLabel#fieldValue {
+                color: #e2ebf2; background: #101b24; border: 1px solid #2a3b49;
+                border-radius: 2px; padding: 5px 7px;
+            }
+            QFrame#decisionStage { background: #0d1820; border: 1px solid #263a48; }
+            QLabel#stageTitle { color: #d5e2e9; font-weight: 650; }
+            QLabel#stageDetail { color: #8fa5b3; }
+            QGroupBox {
+                color: #dce7ef; border: 1px solid #2a3a47; border-radius: 3px;
+                margin-top: 10px; padding: 9px 7px 7px 7px; font-weight: 650;
+            }
+            QGroupBox::title { subcontrol-origin: margin; left: 9px; padding: 0 4px; }
+            QPushButton {
+                color: #dbe5ec; background: #17232d; border: 1px solid #344958;
+                border-radius: 3px; padding: 6px 9px; min-height: 20px;
+            }
+            QPushButton:hover { background: #20313d; border-color: #4f7083; }
+            QPushButton:pressed { background: #101920; }
+            QPushButton#primaryAction { background: #087da3; border-color: #29a9cf; color: white; font-weight: 650; }
+            QPushButton#dangerAction { color: #ffaaa4; border-color: #70413e; }
+            QComboBox, QDoubleSpinBox {
+                color: #dbe5ec; background: #101a23; border: 1px solid #344957;
+                border-radius: 2px; padding: 5px 7px; min-height: 20px;
+            }
+            QComboBox::drop-down { border: 0; width: 18px; }
+            QTableWidget {
+                background: #0b131a; alternate-background-color: #0e1820;
+                color: #d4dee6; border: 0; gridline-color: #263642;
+                selection-background-color: #173c4d; selection-color: white;
+            }
+            QHeaderView::section {
+                background: #14202a; color: #9eb0bf; border: 0;
+                border-right: 1px solid #263642; border-bottom: 1px solid #344957;
+                padding: 6px 4px; font-weight: 650;
+            }
+            QScrollBar:vertical { background: #0b131a; width: 10px; }
+            QScrollBar::handle:vertical { background: #3a4c5b; min-height: 24px; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        """)
 
-        title = QLabel("AI Decision Assist - dynamic sector conflict detection")
-        title.setStyleSheet("font-weight: bold; color: #12351f; font-size: 12px;")
-        layout.addWidget(title)
+        topbar = QFrame(self)
+        topbar.setObjectName("topBar")
+        topbar.setFixedHeight(52)
+        top_layout = QHBoxLayout(topbar)
+        top_layout.setContentsMargins(14, 6, 14, 6)
+        brand = QLabel("智能空管")
+        brand.setStyleSheet("color: #59cef1; font-size: 16px; font-weight: 750;")
+        product = QLabel("冲突解脱验证平台")
+        product.setStyleSheet("color: #f0f5f8; font-size: 15px; font-weight: 700;")
+        current_view = QLabel("  态势监视  ")
+        current_view.setStyleSheet(
+            "color: #8ee3ff; background: #102b37; border-bottom: 2px solid #36b9df; "
+            "padding: 8px 14px; font-weight: 650;"
+        )
+        flow = QLabel("冲突检测   ›   决策生成   ›   指令执行   ›   安全验证")
+        flow.setStyleSheet("color: #718597; padding-left: 18px;")
+        self.header_clock = QLabel("UTC --:--:--")
+        self.header_clock.setStyleSheet("color: #9eb0bd;")
+        self.system_state = QLabel("● 就绪")
+        top_layout.addWidget(brand)
+        top_layout.addWidget(product)
+        top_layout.addSpacing(28)
+        top_layout.addWidget(current_view)
+        top_layout.addWidget(flow)
+        top_layout.addStretch(1)
+        top_layout.addWidget(self.header_clock)
+        top_layout.addSpacing(12)
+        top_layout.addWidget(self.system_state)
+        root.addWidget(topbar)
+
+        body = QHBoxLayout()
+        body.setContentsMargins(6, 6, 6, 5)
+        body.setSpacing(6)
+
+        left = QFrame(self)
+        left.setObjectName("sideRail")
+        left.setFixedWidth(260)
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(8, 5, 8, 7)
+        left_layout.setSpacing(5)
+
+        scene_group = QGroupBox("场景与仿真")
+        scene_layout = QVBoxLayout(scene_group)
+        scene_layout.setSpacing(6)
+        scene_layout.addWidget(QLabel("地图场景"))
+        self.map_combo = QComboBox(self)
+        self.map_combo.addItem("三航路演示", "three_route_demo")
+        self.map_combo.addItem("成都-重庆真实航路", "chengdu_chongqing_real")
+        self.map_combo.setCurrentIndex(self.map_combo.findData(self.current_map_key))
+        scene_layout.addWidget(self.map_combo)
+        scene_meta = QHBoxLayout()
+        scene_meta.addWidget(QLabel("航空器数量上限"))
+        scene_meta.addStretch(1)
+        max_ac = QLabel(str(self.MAX_AIRCRAFT))
+        max_ac.setObjectName("fieldValue")
+        scene_meta.addWidget(max_ac)
+        scene_layout.addLayout(scene_meta)
+        self.load_map_btn = QPushButton("加载场景")
+        scene_layout.addWidget(self.load_map_btn)
+        sim_buttons = QHBoxLayout()
+        self.start_btn = QPushButton("启动")
+        self.start_btn.setObjectName("primaryAction")
+        self.hold_btn = QPushButton("暂停")
+        self.reset_btn = QPushButton("重置")
+        sim_buttons.addWidget(self.start_btn)
+        sim_buttons.addWidget(self.hold_btn)
+        sim_buttons.addWidget(self.reset_btn)
+        scene_layout.addLayout(sim_buttons)
+        self.stop_btn = QPushButton("停止自动交通")
+        self.stop_btn.setObjectName("dangerAction")
+        scene_layout.addWidget(self.stop_btn)
+        left_layout.addWidget(scene_group)
+
+        param_group = QGroupBox("决策参数")
+        form = QFormLayout(param_group)
+        form.setContentsMargins(8, 10, 8, 7)
+        form.setHorizontalSpacing(8)
+        form.setVerticalSpacing(7)
+        self.preference_combo = QComboBox(self)
+        self.preference_combo.addItems(["altitude_first", "speed_first"])
+        form.addRow("解脱偏好", self.preference_combo)
+        self.min_sep_spin = QDoubleSpinBox(self)
+        self.min_sep_spin.setRange(3.0, 20.0)
+        self.min_sep_spin.setDecimals(1)
+        self.min_sep_spin.setSingleStep(0.5)
+        self.min_sep_spin.setValue(self.HSEP_NM)
+        self.min_sep_spin.setSuffix(" NM")
+        form.addRow("水平间隔", self.min_sep_spin)
+        lookahead = QLabel("20 min")
+        lookahead.setObjectName("fieldValue")
+        form.addRow("预测窗口", lookahead)
+        vsep = QLabel("1000 ft")
+        vsep.setObjectName("fieldValue")
+        form.addRow("垂直间隔", vsep)
+        self.llm_combo = QComboBox(self)
+        self.llm_combo.addItems(["template_explainer", "openai_compatible_api", "off"])
+        form.addRow("LLM 包装器", self.llm_combo)
+        left_layout.addWidget(param_group)
+
+        tool_group = QGroupBox("快捷工具")
+        tool_layout = QVBoxLayout(tool_group)
+        tool_row1 = QHBoxLayout()
+        self.spawn_btn = QPushButton("放行一架")
+        self.detect_btn = QPushButton("立即检测")
+        tool_row1.addWidget(self.spawn_btn)
+        tool_row1.addWidget(self.detect_btn)
+        tool_row2 = QHBoxLayout()
+        self.op_btn = QPushButton("继续运行")
+        self.fast_btn = QPushButton("快进 2 分钟")
+        tool_row2.addWidget(self.op_btn)
+        tool_row2.addWidget(self.fast_btn)
+        tool_layout.addLayout(tool_row1)
+        tool_layout.addLayout(tool_row2)
+        left_layout.addWidget(tool_group)
+        left_layout.addStretch(1)
+
+        center = QFrame(self)
+        center.setObjectName("sideRail")
+        center_layout = QVBoxLayout(center)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setSpacing(0)
+        kpi_bar = QFrame(center)
+        kpi_bar.setObjectName("bottomRail")
+        kpi_layout = QHBoxLayout(kpi_bar)
+        kpi_layout.setContentsMargins(9, 5, 9, 5)
+        kpi_layout.setSpacing(6)
+        self.status_aircraft = QLabel("航空器 0/14")
+        self.status_conflicts = QLabel("活动冲突 0")
+        self.status_commands = QLabel("指令总数 0")
+        self.status_execution = QLabel("执行中 0/0")
+        self.status_safety = QLabel("间隔丧失 0")
+        self.status_llm = QLabel("解释层 idle")
+        for status in [self.status_aircraft, self.status_conflicts, self.status_commands,
+                       self.status_execution, self.status_safety, self.status_llm]:
+            status.setAlignment(Qt.AlignCenter)
+            status.setMinimumWidth(100)
+            kpi_layout.addWidget(status, 1)
+        center_layout.addWidget(kpi_bar)
+        if self.radarwidget is not None:
+            self.radarwidget.setParent(center)
+            self.radarwidget.setMinimumSize(640, 390)
+            center_layout.addWidget(self.radarwidget, 1)
+
+        right = QFrame(self)
+        right.setObjectName("sideRail")
+        right.setFixedWidth(390)
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(7, 5, 7, 7)
+        right_layout.setSpacing(6)
+
+        conflict_group = QGroupBox("当前冲突")
+        conflict_layout = QVBoxLayout(conflict_group)
+        self.conflict_table = QTableWidget(0, 4, self)
+        self.conflict_table.setHorizontalHeaderLabels(["航空器对", "CPA / TCPA", "当前间隔", "状态"])
+        self.conflict_table.setAlternatingRowColors(True)
+        self.conflict_table.verticalHeader().setVisible(False)
+        self.conflict_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.conflict_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.conflict_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.conflict_table.setMinimumHeight(170)
+        conflict_layout.addWidget(self.conflict_table)
+        right_layout.addWidget(conflict_group, 3)
+
+        process_group = QGroupBox("决策过程")
+        process_layout = QVBoxLayout(process_group)
+        process_layout.setContentsMargins(7, 8, 7, 8)
+        process_layout.setSpacing(5)
+        self.decision_stage_widgets = {}
+
+        def add_decision_stage(key, number, title):
+            frame = QFrame(self)
+            frame.setObjectName("decisionStage")
+            stage_layout = QVBoxLayout(frame)
+            stage_layout.setContentsMargins(8, 5, 8, 5)
+            stage_layout.setSpacing(2)
+            header = QHBoxLayout()
+            title_label = QLabel("%s  %s" % (number, title))
+            title_label.setObjectName("stageTitle")
+            status_label = QLabel("等待")
+            status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            status_label.setStyleSheet("color: #718493;")
+            header.addWidget(title_label)
+            header.addStretch(1)
+            header.addWidget(status_label)
+            detail_label = QLabel("等待新的冲突决策")
+            detail_label.setObjectName("stageDetail")
+            detail_label.setWordWrap(True)
+            stage_layout.addLayout(header)
+            stage_layout.addWidget(detail_label)
+            process_layout.addWidget(frame)
+            self.decision_stage_widgets[key] = (status_label, detail_label)
+
+        add_decision_stage("input", "①", "冲突输入")
+        add_decision_stage("candidates", "②", "候选方案")
+        add_decision_stage("verification", "③", "验证与选择")
+        right_layout.addWidget(process_group, 4)
+
+        decision_group = QGroupBox("决策与验证")
+        decision_layout = QFormLayout(decision_group)
+        decision_layout.setHorizontalSpacing(7)
+        decision_layout.setVerticalSpacing(5)
+
+        def decision_field(text="-"):
+            label = QLabel(text)
+            label.setObjectName("fieldValue")
+            label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            return label
+
+        self.decision_aircraft_value = decision_field()
+        self.decision_action_value = decision_field()
+        self.decision_target_value = decision_field()
+        self.decision_command_value = decision_field()
+        self.decision_verify_value = decision_field("等待决策")
+        decision_layout.addRow("目标航空器", self.decision_aircraft_value)
+        decision_layout.addRow("机动类型", self.decision_action_value)
+        decision_layout.addRow("目标参数", self.decision_target_value)
+        decision_layout.addRow("仿真指令", self.decision_command_value)
+        decision_layout.addRow("前向验证", self.decision_verify_value)
+        self.decision_summary = QLabel("当前无待执行解脱指令")
+        self.decision_summary.setWordWrap(True)
+        self.decision_summary.setStyleSheet(
+            "color: #9eb1bf; background: #0d1820; border-left: 3px solid #2b8cab; padding: 6px;"
+        )
+        decision_layout.addRow("决策理由", self.decision_summary)
+        self.reverify_btn = QPushButton("重新检测并验证")
+        decision_layout.addRow(self.reverify_btn)
+        right_layout.addWidget(decision_group, 4)
+
+        body.addWidget(left)
+        body.addWidget(center, 1)
+        body.addWidget(right)
+        root.addLayout(body, 1)
+
+        bottom = QFrame(self)
+        bottom.setObjectName("bottomRail")
+        bottom.setFixedHeight(225)
+        bottom_layout = QHBoxLayout(bottom)
+        bottom_layout.setContentsMargins(7, 3, 7, 6)
+        bottom_layout.setSpacing(7)
+
+        aircraft_group = QGroupBox("航班状态 (0)")
+        self.aircraft_group = aircraft_group
+        aircraft_layout = QVBoxLayout(aircraft_group)
+        self.aircraft_table = QTableWidget(0, 6, self)
+        self.aircraft_table.setHorizontalHeaderLabels(["呼号", "航路", "高度", "速度", "航向", "状态"])
+        self.aircraft_table.setAlternatingRowColors(True)
+        self.aircraft_table.verticalHeader().setVisible(False)
+        self.aircraft_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.aircraft_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.aircraft_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        aircraft_layout.addWidget(self.aircraft_table)
+        bottom_layout.addWidget(aircraft_group, 5)
+
+        command_group = QGroupBox("指令执行记录")
+        command_layout = QVBoxLayout(command_group)
+        self.command_table = QTableWidget(0, 6, self)
+        self.command_table.setHorizontalHeaderLabels(["时间", "航空器", "类型", "仿真指令", "规范指令 / 决策理由", "执行状态"])
+        self.command_table.setAlternatingRowColors(True)
+        self.command_table.verticalHeader().setVisible(False)
+        self.command_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.command_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.command_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.command_table.setColumnWidth(0, 75)
+        self.command_table.setColumnWidth(1, 75)
+        self.command_table.setColumnWidth(2, 65)
+        self.command_table.setColumnWidth(3, 170)
+        self.command_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.command_table.setColumnWidth(5, 165)
+        command_layout.addWidget(self.command_table)
+        bottom_layout.addWidget(command_group, 8)
+        root.addWidget(bottom)
+
+        self.text = QTextEdit(self)
+        self.text.setReadOnly(True)
+        self.text.setMinimumHeight(72)
+        self.text.setMaximumHeight(100)
+        self.text.setLineWrapMode(QTextEdit.NoWrap)
+        self.text.setStyleSheet(
+            "background: #070c11; color: #9fb2c0; border: 1px solid #263746; "
+            "font-family: Consolas, monospace; font-size: 11px;"
+        )
+        self.text.setVisible(False)
+        root.addWidget(self.text)
+
+        footer = QFrame(self)
+        footer.setObjectName("bottomRail")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(8, 3, 8, 3)
+        self.log_toggle_btn = QPushButton("系统日志")
+        self.console_toggle_btn = QPushButton("仿真控制台")
+        self.status_cycles = QLabel("检测周期 0")
+        self.status_log = QLabel("日志 -")
+        footer_layout.addWidget(self.log_toggle_btn)
+        footer_layout.addWidget(self.console_toggle_btn)
+        footer_layout.addStretch(1)
+        footer_layout.addWidget(self.status_cycles)
+        footer_layout.addSpacing(12)
+        footer_layout.addWidget(self.status_log)
+        root.addWidget(footer)
 
         self.map_info = QLabel("")
-        info = self.map_info
-        info.setWordWrap(True)
-        info.setStyleSheet("color: #1f2a22;")
-        layout.addWidget(info)
+        self.map_info.setVisible(False)
+        self.reset_btn.clicked.connect(self.reset_sector)
+        self.start_btn.clicked.connect(self.start_auto_traffic)
+        self.stop_btn.clicked.connect(self.stop_auto_traffic)
+        self.spawn_btn.clicked.connect(self.spawn_random_aircraft)
+        self.detect_btn.clicked.connect(self.detect_and_resolve)
+        self.reverify_btn.clicked.connect(self.detect_and_resolve)
+        self.op_btn.clicked.connect(self.operate_simulation)
+        self.fast_btn.clicked.connect(self.fast_forward_demo)
+        self.hold_btn.clicked.connect(lambda: self._stack("HOLD"))
+        self.load_map_btn.clicked.connect(self.load_selected_map)
+        self.min_sep_spin.valueChanged.connect(self.on_min_separation_changed)
+        self.log_toggle_btn.clicked.connect(self._toggle_system_log)
+        self.console_toggle_btn.clicked.connect(self._toggle_bluesky_console)
+        self._update_map_info()
+
+    def _build_ui_legacy(self):
+        self.setObjectName("aiAssistPanel")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 7, 10, 7)
+        layout.setSpacing(6)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setMinimumHeight(320)
+        self.setStyleSheet("""
+            QWidget#aiAssistPanel { background: #0b1118; }
+            QWidget { background: #0b1118; color: #d8e1ea; font-size: 12px; }
+            QLabel { background: transparent; color: #c8d2dc; }
+            QGroupBox {
+                color: #dce6ef; border: 1px solid #2b3947; border-radius: 3px;
+                margin-top: 9px; padding-top: 8px; font-weight: 600;
+            }
+            QGroupBox::title { subcontrol-origin: margin; left: 9px; padding: 0 4px; }
+            QPushButton {
+                color: #dce6ef; background: #18232e; border: 1px solid #344655;
+                border-radius: 3px; padding: 5px 10px; min-height: 18px;
+            }
+            QPushButton:hover { background: #22313d; border-color: #4b667a; }
+            QPushButton:pressed { background: #111a22; }
+            QPushButton#primaryAction { background: #087ea4; border-color: #20a7cf; color: #ffffff; }
+            QPushButton#dangerAction { color: #ffb2ad; border-color: #70413f; }
+            QComboBox, QDoubleSpinBox {
+                color: #dce6ef; background: #111a23; border: 1px solid #344655;
+                border-radius: 2px; padding: 4px 7px; min-height: 20px;
+            }
+            QComboBox::drop-down { border: 0; width: 18px; }
+            QTableWidget {
+                background: #0e151d; alternate-background-color: #111b24;
+                color: #d4dde6; border: 0; gridline-color: #263440;
+                selection-background-color: #173b4b; selection-color: #ffffff;
+            }
+            QHeaderView::section {
+                background: #151f29; color: #9fb0c0; border: 0;
+                border-right: 1px solid #263440; border-bottom: 1px solid #344655;
+                padding: 5px; font-weight: 600;
+            }
+            QScrollBar:vertical { background: #0e151d; width: 10px; margin: 0; }
+            QScrollBar::handle:vertical { background: #3a4b5a; min-height: 24px; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        """)
+
+        header_row = QHBoxLayout()
+        title_box = QVBoxLayout()
+        title_box.setSpacing(0)
+        title = QLabel("智能空管冲突解脱验证平台")
+        title.setStyleSheet("font-weight: 700; color: #f2f6fa; font-size: 14px;")
+        subtitle = QLabel("动态扇区冲突检测 / 决策 / 执行验证")
+        subtitle.setStyleSheet("color: #73879a; font-size: 11px;")
+        title_box.addWidget(title)
+        title_box.addWidget(subtitle)
+        header_row.addLayout(title_box)
+        header_row.addStretch(1)
+        self.system_state = QLabel("● 就绪")
+        self.system_state.setStyleSheet(
+            "color: #8fa2b3; background: #111a23; border: 1px solid #344655; "
+            "border-radius: 3px; padding: 5px 10px; font-weight: 600;"
+        )
+        header_row.addWidget(self.system_state)
+        layout.addLayout(header_row)
 
         btnrow = QHBoxLayout()
-        self.reset_btn = QPushButton("Reset sector")
-        self.start_btn = QPushButton("Start auto traffic")
-        self.stop_btn = QPushButton("Stop")
-        self.spawn_btn = QPushButton("Spawn one")
-        self.detect_btn = QPushButton("Detect now")
-        self.op_btn = QPushButton("Operate")
-        self.fast_btn = QPushButton("Fast 2 min")
-        self.hold_btn = QPushButton("Hold")
+        btnrow.setSpacing(5)
+        self.reset_btn = QPushButton("重置场景")
+        self.start_btn = QPushButton("启动交通")
+        self.start_btn.setObjectName("primaryAction")
+        self.stop_btn = QPushButton("停止")
+        self.stop_btn.setObjectName("dangerAction")
+        self.spawn_btn = QPushButton("放行一架")
+        self.detect_btn = QPushButton("立即检测")
+        self.op_btn = QPushButton("运行")
+        self.fast_btn = QPushButton("快进 2 分钟")
+        self.hold_btn = QPushButton("暂停")
         for btn in [self.reset_btn, self.start_btn, self.stop_btn, self.spawn_btn, self.detect_btn, self.op_btn, self.fast_btn, self.hold_btn]:
             btnrow.addWidget(btn)
         btnrow.addStretch(1)
         layout.addLayout(btnrow)
 
         option_row = QHBoxLayout()
-        option_row.addWidget(QLabel("Map"))
+        option_row.setSpacing(6)
+        option_row.addWidget(QLabel("场景地图"))
         self.map_combo = QComboBox(self)
-        self.map_combo.addItem("Three-route demo", "three_route_demo")
-        self.map_combo.addItem("Chengdu-Chongqing real", "chengdu_chongqing_real")
+        self.map_combo.addItem("三航路演示", "three_route_demo")
+        self.map_combo.addItem("成都-重庆真实航路", "chengdu_chongqing_real")
         self.map_combo.setCurrentIndex(self.map_combo.findData(self.current_map_key))
         option_row.addWidget(self.map_combo)
-        self.load_map_btn = QPushButton("Load map")
+        self.load_map_btn = QPushButton("加载地图")
         option_row.addWidget(self.load_map_btn)
-        option_row.addWidget(QLabel("Preference"))
+        option_row.addWidget(QLabel("决策偏好"))
         self.preference_combo = QComboBox(self)
         self.preference_combo.addItems(["altitude_first", "speed_first"])
         option_row.addWidget(self.preference_combo)
-        option_row.addWidget(QLabel("Min sep NM"))
+        option_row.addWidget(QLabel("最小间隔"))
         self.min_sep_spin = QDoubleSpinBox(self)
         self.min_sep_spin.setRange(3.0, 20.0)
         self.min_sep_spin.setDecimals(1)
         self.min_sep_spin.setSingleStep(0.5)
         self.min_sep_spin.setValue(self.HSEP_NM)
+        self.min_sep_spin.setSuffix(" NM")
         self.min_sep_spin.setToolTip("Required horizontal separation in nautical miles. The detector and verifier use this value immediately.")
         option_row.addWidget(self.min_sep_spin)
-        option_row.addWidget(QLabel("LLM wrapper"))
+        option_row.addWidget(QLabel("解释层"))
         self.llm_combo = QComboBox(self)
         self.llm_combo.addItems(["template_explainer", "openai_compatible_api", "off"])
         option_row.addWidget(self.llm_combo)
@@ -280,31 +704,38 @@ class AiAssistPanel(QWidget):
         layout.addLayout(option_row)
 
         status_row = QHBoxLayout()
-        self.status_aircraft = QLabel("Aircraft: 0")
-        self.status_cycles = QLabel("Cycles: 0")
-        self.status_conflicts = QLabel("Conflicts: 0")
-        self.status_commands = QLabel("Commands: 0")
-        self.status_execution = QLabel("Execution: -")
-        self.status_safety = QLabel("Loss: 0")
-        self.status_llm = QLabel("LLM: idle")
-        self.status_log = QLabel("Log: -")
+        status_row.setSpacing(5)
+        self.status_aircraft = QLabel("航空器 0/14")
+        self.status_cycles = QLabel("检测周期 0")
+        self.status_conflicts = QLabel("活动冲突 0")
+        self.status_commands = QLabel("决策指令 0")
+        self.status_execution = QLabel("执行进度 0/0")
+        self.status_safety = QLabel("失去间隔 0")
+        self.status_llm = QLabel("解释层 idle")
+        self.status_log = QLabel("日志 -")
         for item in [
             self.status_aircraft,
-            self.status_cycles,
             self.status_conflicts,
             self.status_commands,
             self.status_execution,
             self.status_safety,
             self.status_llm,
-            self.status_log,
         ]:
             item.setStyleSheet(
-                "QLabel { color: #14351f; background: #e8f2ea; border: 1px solid #b9cdbc; "
-                "border-radius: 3px; padding: 2px 6px; }"
+                "color: #b8c5d0; background: #111a23; border: 1px solid #2e3d4a; "
+                "border-radius: 3px; padding: 4px 9px;"
             )
             status_row.addWidget(item)
         status_row.addStretch(1)
         layout.addLayout(status_row)
+
+        self.decision_summary = QLabel("最新决策  |  当前无待执行解脱指令")
+        self.decision_summary.setWordWrap(False)
+        self.decision_summary.setStyleSheet(
+            "color: #b8c7d4; background: #101922; border-left: 3px solid #2c91b3; "
+            "padding: 5px 9px;"
+        )
+        layout.addWidget(self.decision_summary)
 
         self.reset_btn.clicked.connect(self.reset_sector)
         self.start_btn.clicked.connect(self.start_auto_traffic)
@@ -318,53 +749,91 @@ class AiAssistPanel(QWidget):
         self.min_sep_spin.valueChanged.connect(self.on_min_separation_changed)
         self._update_map_info()
 
-        conflict_group = QGroupBox("Current conflicts - updated in place")
+        data_row = QHBoxLayout()
+        data_row.setSpacing(7)
+
+        conflict_group = QGroupBox("当前冲突 · 状态持续更新")
         conflict_layout = QVBoxLayout(conflict_group)
         self.conflict_table = QTableWidget(0, 6, self)
-        self.conflict_table.setHorizontalHeaderLabels(["Pair", "CPA time", "CPA sep", "Now sep", "State", "Command"])
-        self.conflict_table.setMinimumHeight(92)
-        self.conflict_table.setMaximumHeight(125)
+        self.conflict_table.setHorizontalHeaderLabels(["航空器对", "CPA 时间", "CPA 间隔", "当前间隔", "状态", "关联指令"])
+        self.conflict_table.setMinimumHeight(145)
+        self.conflict_table.setMaximumHeight(205)
+        self.conflict_table.setAlternatingRowColors(True)
         self.conflict_table.verticalHeader().setVisible(False)
         self.conflict_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.conflict_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.conflict_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self.conflict_table.setColumnWidth(0, 130)
-        self.conflict_table.setColumnWidth(1, 80)
-        self.conflict_table.setColumnWidth(2, 105)
-        self.conflict_table.setColumnWidth(3, 105)
-        self.conflict_table.setColumnWidth(4, 78)
-        self.conflict_table.setColumnWidth(5, 210)
+        self.conflict_table.setColumnWidth(0, 125)
+        self.conflict_table.setColumnWidth(1, 78)
+        self.conflict_table.setColumnWidth(2, 112)
+        self.conflict_table.setColumnWidth(3, 112)
+        self.conflict_table.setColumnWidth(4, 82)
+        self.conflict_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
         conflict_layout.addWidget(self.conflict_table)
-        layout.addWidget(conflict_group)
+        data_row.addWidget(conflict_group, 5)
 
-        command_group = QGroupBox("Issued commands")
+        command_group = QGroupBox("指令执行记录")
         command_layout = QVBoxLayout(command_group)
         self.command_table = QTableWidget(0, 6, self)
-        self.command_table.setHorizontalHeaderLabels(["Time", "Aircraft", "Type", "BlueSky cmd", "Instruction/Reason", "Execution"])
-        self.command_table.setMinimumHeight(135)
-        self.command_table.setMaximumHeight(170)
+        self.command_table.setHorizontalHeaderLabels(["时间", "航空器", "类型", "仿真指令", "规范指令 / 决策理由", "执行状态"])
+        self.command_table.setMinimumHeight(145)
+        self.command_table.setMaximumHeight(205)
+        self.command_table.setAlternatingRowColors(True)
         self.command_table.verticalHeader().setVisible(False)
         self.command_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.command_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.command_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self.command_table.setColumnWidth(0, 75)
-        self.command_table.setColumnWidth(1, 80)
-        self.command_table.setColumnWidth(2, 70)
-        self.command_table.setColumnWidth(3, 155)
-        self.command_table.setColumnWidth(4, 230)
-        self.command_table.setColumnWidth(5, 175)
+        self.command_table.setColumnWidth(0, 72)
+        self.command_table.setColumnWidth(1, 72)
+        self.command_table.setColumnWidth(2, 62)
+        self.command_table.setColumnWidth(3, 145)
+        self.command_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.command_table.setColumnWidth(5, 160)
         command_layout.addWidget(self.command_table)
-        layout.addWidget(command_group)
+        data_row.addWidget(command_group, 7)
+        layout.addLayout(data_row)
 
         self.text = QTextEdit(self)
         self.text.setReadOnly(True)
-        self.text.setMinimumHeight(95)
-        self.text.setMaximumHeight(115)
+        self.text.setMinimumHeight(72)
+        self.text.setMaximumHeight(90)
         self.text.setLineWrapMode(QTextEdit.NoWrap)
         self.text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.text.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.text.setStyleSheet("background: #1a1f1b; color: #d8ffe0; font-family: Consolas, monospace;")
+        self.text.setStyleSheet(
+            "background: #080d12; color: #9fb2c0; border: 1px solid #263440; "
+            "font-family: Consolas, monospace; font-size: 11px;"
+        )
+        self.text.setVisible(False)
         layout.addWidget(self.text)
+
+        footer_row = QHBoxLayout()
+        footer_row.setSpacing(8)
+        self.log_toggle_btn = QPushButton("显示系统日志")
+        self.console_toggle_btn = QPushButton("显示仿真控制台")
+        self.log_toggle_btn.clicked.connect(self._toggle_system_log)
+        self.console_toggle_btn.clicked.connect(self._toggle_bluesky_console)
+        footer_row.addWidget(self.log_toggle_btn)
+        footer_row.addWidget(self.console_toggle_btn)
+        footer_row.addWidget(self.status_cycles)
+        footer_row.addWidget(self.status_log, 1)
+        layout.addLayout(footer_row)
+
+    def _toggle_system_log(self):
+        visible = not self.text.isVisible()
+        self.text.setVisible(visible)
+        self.log_toggle_btn.setText("隐藏系统日志" if visible else "显示系统日志")
+
+    def _toggle_bluesky_console(self):
+        if self.console is None or self.window() is None:
+            return
+        dock = getattr(self.window(), "dockWidget", None)
+        if dock is None:
+            return
+        visible = not dock.isVisible()
+        dock.setVisible(visible)
+        self.console.setVisible(True)
+        self.console_toggle_btn.setText("隐藏仿真控制台" if visible else "显示仿真控制台")
 
     @staticmethod
     def _queued_command(item):
@@ -487,6 +956,89 @@ class AiAssistPanel(QWidget):
             return
         self._add_command_row(aircraft, event, command, decision, status)
 
+    def _set_decision_stage(self, key, status, detail, tone="info"):
+        widgets = getattr(self, "decision_stage_widgets", {}).get(key)
+        if not widgets:
+            return
+        status_label, detail_label = widgets
+        colors = {
+            "pending": "#718493",
+            "info": "#58c7e8",
+            "success": "#69d39a",
+            "warning": "#f2c15f",
+            "danger": "#ff7770",
+        }
+        status_label.setText(str(status))
+        status_label.setStyleSheet("color: %s; font-weight: 650;" % colors.get(tone, colors["info"]))
+        detail_label.setText(str(detail))
+        detail_label.setToolTip(str(detail))
+
+    def _reset_decision_process(self):
+        for key in ("input", "candidates", "verification"):
+            self._set_decision_stage(key, "等待", "等待新的冲突决策", "pending")
+
+    @staticmethod
+    def _candidate_display_text(candidate):
+        acid = str(candidate.get("aircraft", "-"))
+        kind = str(candidate.get("kind", "hold"))
+        if kind == "altitude":
+            return "%s→FL%d" % (acid, int(candidate.get("target_fl", 0)))
+        if kind == "speed":
+            return "%s→%d kt" % (acid, int(candidate.get("target_speed", 0)))
+        return "%s保持" % acid
+
+    def _update_decision_process(self, detections, actions, solver):
+        if not detections:
+            return
+        tcpa, hsep, vsep, a, b, _pair = detections[0]
+        self._set_decision_stage(
+            "input",
+            "已识别",
+            "%s↔%s｜CPA %.1f NM / %.0f ft｜TCPA %.1f min｜阈值 %.1f NM / %.0f ft"
+            % (a["id"], b["id"], hsep, vsep, tcpa, self._min_hsep_nm(), self.VERIFY_VSEP_FT),
+            "warning",
+        )
+
+        candidates = list(solver.get("candidate_actions", []))
+        if not candidates:
+            candidates = [dict(action) for action in actions]
+        selected = solver.get("selected_actions", {})
+        candidates.sort(key=lambda item: (
+            0 if selected.get(item.get("aircraft")) == item.get("label") else 1,
+            1 if item.get("kind") == "hold" else 0,
+        ))
+        preview = "；".join(self._candidate_display_text(item) for item in candidates[:3])
+        candidate_count = int(solver.get("candidate_count", len(candidates) or len(actions)))
+        if not preview:
+            preview = "未生成可执行候选"
+        self._set_decision_stage(
+            "candidates",
+            "已生成" if candidate_count else "无候选",
+            "共 %d 个候选｜%s" % (candidate_count, preview),
+            "info" if candidate_count else "danger",
+        )
+
+        preference = "高度优先" if solver.get("preference") == "altitude_first" else "速度优先"
+        checks = int(solver.get("pair_checks", 0))
+        rejected = int(solver.get("rejected_pair_checks", 0))
+        if solver.get("success"):
+            chosen = "；".join(self._candidate_display_text(action) for action in actions)
+            if not chosen:
+                chosen = "保持当前已验证方案"
+            self._set_decision_stage(
+                "verification",
+                "已通过",
+                "%s｜验证 %d 组，淘汰 %d 组｜选择 %s" % (preference, checks, rejected, chosen),
+                "success",
+            )
+        else:
+            self._set_decision_stage(
+                "verification",
+                "未通过",
+                "%s｜验证 %d 组｜未找到满足约束的方案" % (preference, checks),
+                "danger",
+            )
+
     def _add_command_row(self, aircraft, command_type, command, instruction, status):
         row = self.command_table.rowCount()
         self.command_table.insertRow(row)
@@ -496,6 +1048,31 @@ class AiAssistPanel(QWidget):
             item.setTextAlignment(Qt.AlignCenter)
             item.setToolTip(str(value))
             self.command_table.setItem(row, col, item)
+        if hasattr(self, "decision_summary"):
+            self.decision_aircraft_value.setText(str(aircraft))
+            command_head = str(command).strip().split(" ", 1)[0].upper()
+            if command_head == "ALT":
+                action_text = "高度调整"
+                parts = str(command).split(",")
+                target_text = parts[1] if len(parts) > 1 else "-"
+            elif command_head == "SPD":
+                action_text = "速度调整"
+                parts = str(command).split(",")
+                target_text = (parts[1] + " kt") if len(parts) > 1 else "-"
+            else:
+                action_text = str(command_type)
+                target_text = "-"
+            self.decision_action_value.setText(action_text)
+            self.decision_target_value.setText(target_text)
+            self.decision_command_value.setText(str(command))
+            self.decision_command_value.setToolTip(str(command))
+            self.decision_verify_value.setText("前向验证通过")
+            self.decision_verify_value.setStyleSheet(
+                "color: #75d9a5; background: #14271f; border: 1px solid #2d664b; "
+                "border-radius: 2px; padding: 5px 7px; font-weight: 650;"
+            )
+            self.decision_summary.setText(str(instruction))
+            self.decision_summary.setToolTip(str(instruction))
         self.command_table.scrollToBottom()
         self._update_status_labels()
         return row
@@ -547,6 +1124,15 @@ class AiAssistPanel(QWidget):
         item = QTableWidgetItem(status)
         item.setTextAlignment(Qt.AlignCenter)
         item.setToolTip(status)
+        status_lower = str(status).lower()
+        if "reached" in status_lower or "verified" in status_lower or "完成" in status_lower:
+            item.setForeground(QColor("#63d69a"))
+        elif "execut" in status_lower or "waiting" in status_lower or "sent" in status_lower:
+            item.setForeground(QColor("#52bde2"))
+        elif "failed" in status_lower or "blocked" in status_lower:
+            item.setForeground(QColor("#ff7770"))
+        elif "superseded" in status_lower:
+            item.setForeground(QColor("#7f8d99"))
         self.command_table.setItem(row, 5, item)
         self._last_command_status_by_row[row] = status
 
@@ -559,7 +1145,8 @@ class AiAssistPanel(QWidget):
         self._last_execution_update_ts = now_ts
         if not self.command_records:
             if hasattr(self, "status_execution"):
-                self.status_execution.setText("Execution: 0/0")
+                self.status_execution.setText("执行进度 0/0")
+                self._set_status_tone(self.status_execution, "neutral")
             return
         reached = 0
         tracked = 0
@@ -646,7 +1233,8 @@ class AiAssistPanel(QWidget):
                 reached += 1
             self._set_command_status(record["row"], status)
         if hasattr(self, "status_execution"):
-            self.status_execution.setText("Execution: %d/%d" % (reached, tracked))
+            self.status_execution.setText("执行进度 %d/%d" % (reached, tracked))
+            self._set_status_tone(self.status_execution, "success" if tracked and reached == tracked else "info")
 
     def _current_separation_summary(self):
         aircraft = [
@@ -780,27 +1368,92 @@ class AiAssistPanel(QWidget):
                     related.append(cmd)
             values = [
                 pair_text,
-                "%.1f min" % tcpa,
-                "%.1f NM / %.0f ft" % (hsep, vsep),
-                "%.1f NM / %.0f ft" % (current_h, current_v),
+                "%.1f NM\n%.1f min" % (hsep, tcpa),
+                "%.1f NM\n%.0f ft" % (current_h, current_v),
                 row_state,
-                "; ".join(related) if related else "-",
             ]
-            table_rows.append(values)
-        signature = tuple(tuple(values) for values in table_rows)
+            active_loss = current_h < self._min_hsep_nm() and current_v < self.VSEP_FT
+            table_rows.append((values, active_loss))
+        signature = tuple((tuple(values), active_loss) for values, active_loss in table_rows)
         self.active_conflict_count = len(table_rows)
         if signature == self._last_conflict_table_signature:
             return
         self._last_conflict_table_signature = signature
         self.conflict_table.setRowCount(0)
-        for row, values in enumerate(table_rows):
+        for row, (values, active_loss) in enumerate(table_rows):
             self.conflict_table.insertRow(row)
+            self.conflict_table.setRowHeight(row, 46)
             for col, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setTextAlignment(Qt.AlignCenter)
                 item.setToolTip(str(value))
+                if col in {0, 3}:
+                    item.setForeground(QColor("#ff7770" if active_loss else "#f0b85a"))
                 self.conflict_table.setItem(row, col, item)
         self._update_status_labels()
+
+    def _refresh_aircraft_table(self):
+        if not hasattr(self, "aircraft_table"):
+            return
+        states = [
+            state for state in self.latest_acdata.values()
+            if str(state.get("id", "")).startswith("DYN")
+        ]
+        states.sort(key=lambda state: str(state.get("id", "")))
+        conflict_aircraft = set()
+        for pair in self.tracked_conflicts:
+            conflict_aircraft.update(pair)
+        rows = []
+        for state in states[:self.MAX_AIRCRAFT]:
+            acid = str(state.get("id", "-"))
+            meta = self.active_meta.get(acid, {})
+            route = str(meta.get("route", "-"))
+            if len(route) > 15:
+                route = route[:14] + "…"
+            values = [
+                acid,
+                route,
+                "FL%.0f" % (float(state.get("alt_ft", 0.0)) / 100.0),
+                "%d kt" % self._speed_kt(state),
+                "%03d°" % (int(round(float(state.get("trk", state.get("hdg", 0.0))))) % 360),
+                "冲突监控" if acid in conflict_aircraft else "正常运行",
+            ]
+            rows.append(values)
+        signature = tuple(tuple(values) for values in rows)
+        if signature == self._last_aircraft_table_signature:
+            return
+        self._last_aircraft_table_signature = signature
+        self.aircraft_table.setRowCount(0)
+        for row, values in enumerate(rows):
+            self.aircraft_table.insertRow(row)
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setTextAlignment(Qt.AlignCenter)
+                item.setToolTip(str(value))
+                if col == 0:
+                    item.setForeground(QColor("#59cef1"))
+                elif col == 5:
+                    item.setForeground(QColor("#f0b85a" if value == "冲突监控" else "#75d9a5"))
+                self.aircraft_table.setItem(row, col, item)
+        self.aircraft_group.setTitle("航班状态 (%d)" % len(rows))
+
+    def _set_status_tone(self, label, tone):
+        key = id(label)
+        if self._status_tone_cache.get(key) == tone:
+            return
+        tones = {
+            "neutral": ("#b8c5d0", "#111a23", "#2e3d4a"),
+            "info": ("#8dd8ef", "#102631", "#28657a"),
+            "warning": ("#f3c36b", "#2b2416", "#74571f"),
+            "danger": ("#ff8b85", "#301919", "#7a3431"),
+            "success": ("#75d9a5", "#14271f", "#2d664b"),
+        }
+        fg, bg, border = tones.get(tone, tones["neutral"])
+        label.setStyleSheet(
+            "color: %s; background: %s; border: 1px solid %s; "
+            "border-radius: 3px; padding: 4px 9px; font-weight: 600;" % (fg, bg, border)
+        )
+        self._status_tone_cache[key] = tone
 
     def _update_status_labels(self):
         if not hasattr(self, "status_aircraft"):
@@ -811,24 +1464,39 @@ class AiAssistPanel(QWidget):
         self._last_status_update_ts = now_ts
         live_count = len(self._live_dyn_ids())
         scheduled_count = len(self.active_meta)
-        self.status_aircraft.setText("Aircraft: %d/%d queued:%d" % (live_count, self.MAX_AIRCRAFT, scheduled_count))
-        self.status_cycles.setText("Cycles: %d" % self.detect_cycles)
-        self.status_conflicts.setText("Active conflicts: %d" % self.active_conflict_count)
-        self.status_commands.setText("Commands: %d" % len(self.command_records))
+        self._refresh_aircraft_table()
+        sim_seconds = int(float(self.latest_sim_time or 0.0))
+        sim_h = (sim_seconds // 3600) % 24
+        sim_m = (sim_seconds % 3600) // 60
+        sim_s = sim_seconds % 60
+        self.header_clock.setText("仿真 UTC %02d:%02d:%02d" % (sim_h, sim_m, sim_s))
+        self.status_aircraft.setText("航空器 %d/%d · 队列%d" % (live_count, self.MAX_AIRCRAFT, scheduled_count))
+        self.status_cycles.setText("检测周期 %d" % self.detect_cycles)
+        self.status_conflicts.setText("活动冲突 %d" % self.active_conflict_count)
+        self.status_commands.setText("决策指令 %d" % len(self.command_records))
+        self._set_status_tone(self.status_aircraft, "info" if live_count else "neutral")
+        self._set_status_tone(self.status_conflicts, "warning" if self.active_conflict_count else "success")
+        self._set_status_tone(self.status_commands, "info" if self.command_records else "neutral")
         summary = self._current_separation_summary()
         if summary["min_hsep"] is None:
-            self.status_safety.setText("Loss: 0")
+            self.status_safety.setText("失去间隔 0")
             self.status_safety.setToolTip("No DYN aircraft pair available yet.")
+            self._set_status_tone(self.status_safety, "success")
         else:
-            self.status_safety.setText("Loss: %d" % summary["loss_count"])
+            self.status_safety.setText("失去间隔 %d" % summary["loss_count"])
             self.status_safety.setToolTip(
                 "Current minimum separation among visible DYN aircraft: %.1f NM / %.0f ft"
                 % (summary["min_hsep"], summary["min_vsep"])
             )
-        self.status_llm.setText("LLM: %s" % self.last_llm_status)
+            self._set_status_tone(self.status_safety, "danger" if summary["loss_count"] else "success")
+        self.status_llm.setText("解释层 %s" % self.last_llm_status)
+        self._set_status_tone(self.status_llm, "info" if self.last_llm_status not in {"idle", "off"} else "neutral")
         log_text = self.log_path.name if self.log_path else "-"
-        self.status_log.setText("Log: %s" % log_text)
+        self.status_log.setText("日志 %s" % log_text)
         self.status_log.setToolTip(str(self.log_path) if self.log_path else "-")
+        running = self.spawn_timer.isActive() or self.detect_timer.isActive()
+        self.system_state.setText("● 运行中" if running else "● 就绪")
+        self._set_status_tone(self.system_state, "success" if running else "neutral")
 
     def _min_hsep_nm(self):
         if hasattr(self, "min_sep_spin"):
@@ -922,11 +1590,11 @@ class AiAssistPanel(QWidget):
             QTimer.singleShot(500, self.auto_load_sector)
             return
         if not active:
-            self._log_text("No active BlueSky node yet. Press Reset sector after the node appears.")
+            self._log_text("仿真节点尚未就绪，请稍后重置扇区。")
             return
         self._autoload_done = True
         self._ensure_stream_connection()
-        self._log_text("BlueSky node ready. Press Reset sector to load the lightweight dynamic sector.")
+        self._log_text("仿真节点已就绪，可重置扇区并加载动态场景。")
 
     def base_sector_commands(self):
         # Keep visual initialization light. Extra route polylines and waypoint labels
@@ -976,6 +1644,16 @@ class AiAssistPanel(QWidget):
         self.last_llm_status = "idle"
         self.conflict_table.setRowCount(0)
         self.command_table.setRowCount(0)
+        if hasattr(self, "aircraft_table"):
+            self.aircraft_table.setRowCount(0)
+            self._last_aircraft_table_signature = None
+        for label in [self.decision_aircraft_value, self.decision_action_value,
+                      self.decision_target_value, self.decision_command_value]:
+            label.setText("-")
+        self.decision_verify_value.setText("等待决策")
+        self.decision_summary.setText("当前无待执行解脱指令")
+        self.decision_summary.setToolTip("")
+        self._reset_decision_process()
         self._new_log_file()
         for command in self.base_sector_commands():
             self._stack(command)
@@ -995,7 +1673,7 @@ class AiAssistPanel(QWidget):
         if self.command_queue or now_ts < self.reset_pending_until:
             if not self.pending_start:
                 self.pending_start = True
-                self._log_text("Reset is still being applied in BlueSky; auto traffic will start after the queue settles.")
+                self._log_text("场景正在重置，命令队列完成后将自动启动交通流。")
             QTimer.singleShot(800, self.start_auto_traffic)
             return
         self.pending_start = False
@@ -1005,6 +1683,8 @@ class AiAssistPanel(QWidget):
             self.spawn_initial_wave()
         self.spawn_timer.start(self.SPAWN_INTERVAL_MS)
         self.detect_timer.start(self.DETECT_INTERVAL_MS)
+        self._last_status_update_ts = 0.0
+        self._update_status_labels()
         QTimer.singleShot(6000, self.detect_and_resolve)
         self._add_row("control", "-", "-", "Auto traffic started", "OP", "running")
         self._append_log({"event": "auto_traffic_started", "spawn_interval_ms": self.SPAWN_INTERVAL_MS})
@@ -1019,6 +1699,8 @@ class AiAssistPanel(QWidget):
     def stop_auto_traffic(self, stack_hold=True):
         self.spawn_timer.stop()
         self.detect_timer.stop()
+        self._last_status_update_ts = 0.0
+        self._update_status_labels()
         if stack_hold:
             self._stack("HOLD")
             self._add_row("control", "-", "-", "Auto traffic stopped", "HOLD", "hold")
@@ -1643,6 +2325,17 @@ class AiAssistPanel(QWidget):
         output = api_result.get("output") or {}
         selected_ids = output.get("actions") or []
         safe, commands, verification = self._verify_model_solution(graph, state_by_id, action_lookup, selected_ids)
+        candidate_actions = [
+            {
+                "aircraft": acid,
+                "kind": action["kind"],
+                "target_fl": action["target_fl"],
+                "target_speed": action["target_speed"],
+                "label": action["label"],
+            }
+            for acid in order
+            for action in actions_by_acid[acid]
+        ]
         solver = {
             "method": "llm_action_selector_verified" if safe else "llm_action_selector_rejected",
             "preference": self.preference_combo.currentText() if hasattr(self, "preference_combo") else "speed_first",
@@ -1802,8 +2495,11 @@ class AiAssistPanel(QWidget):
             "preference": self.preference_combo.currentText() if hasattr(self, "preference_combo") else "speed_first",
             "num_conflict_aircraft": len(order),
             "num_conflict_pairs": len(detections),
+            "candidate_count": sum(len(items) for items in actions_by_acid.values()),
+            "candidate_actions": candidate_actions[:3],
             "search_nodes": checked_nodes,
             "pair_checks": len(pair_cache),
+            "rejected_pair_checks": sum(1 for safe in pair_cache.values() if not safe),
             "used_alt_reversal_fallback": used_alt_reversal_fallback,
             "timed_out": timed_out,
             "selected_actions": {},
@@ -1822,6 +2518,11 @@ class AiAssistPanel(QWidget):
             if self._command_is_active(action["command"]):
                 continue
             commands.append(action)
+        candidate_actions.sort(key=lambda item: (
+            0 if solver["selected_actions"].get(item["aircraft"]) == item["label"] else 1,
+            1 if item["kind"] == "hold" else 0,
+        ))
+        solver["candidate_actions"] = candidate_actions[:3]
         return commands, solver
 
     def _build_recovery_altitude_plan(self, state_by_id, detections):
@@ -2063,6 +2764,7 @@ class AiAssistPanel(QWidget):
             else:
                 display_rows = self._sync_tracked_conflicts(aircraft, detections, [], default_state="Blocked")
                 self._refresh_conflict_table(display_rows, [], state="Blocked")
+                self._update_decision_process(detections, [], solver)
                 self._add_command_row(aircraft_text, "alert", "-", "No verified action; hold for controller review", "blocked")
                 self._append_log({
                     "event": "conflict_detected_no_verified_action",
@@ -2073,6 +2775,7 @@ class AiAssistPanel(QWidget):
                 self._update_status_labels()
                 return
 
+        self._update_decision_process(detections, actions, solver)
         instruction_by_aircraft = {
             item["aircraft"]: item["instruction"]
             for item in llm_output.get("structured_actions", [])

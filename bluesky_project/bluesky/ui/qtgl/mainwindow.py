@@ -117,6 +117,7 @@ class MainWindow(QMainWindow):
             app.instance().setWindowIcon(QIcon(os.path.join(bs.settings.gfx_path, 'icon.gif')))
 
         uic.loadUi(os.path.join(bs.settings.gfx_path, 'mainwindow.ui'), self)
+        self.setWindowTitle("智能空管冲突解脱验证平台")
 
         # list of buttons to connect to, give icons, and tooltips
         #           the button         the icon      the tooltip    the callback
@@ -156,8 +157,6 @@ class MainWindow(QMainWindow):
         self.action_Save.triggered.connect(self.buttonClicked)
         self.actionBlueSky_help.triggered.connect(self.show_doc_window)
 
-        self.radarwidget.setParent(self.centralwidget)
-        self.verticalLayout.insertWidget(0, self.radarwidget, 1)
         # Connect to io client's nodelist changed signal
         bs.net.nodes_changed.connect(self.nodesChanged)
         bs.net.actnodedata_changed.connect(self.actnodedataChanged)
@@ -182,25 +181,15 @@ class MainWindow(QMainWindow):
         self.stackText.setStyleSheet('color:' + fgcolor + '; background-color:' + bgcolor)
         self.lineEdit.setStyleSheet('color:' + fgcolor + '; background-color:' + bgcolor)
 
-        self.aiassist_panel = AiAssistPanel(self.console, self)
-        self.tabWidget.addTab(self.aiassist_panel, 'AI')
-        self.tabWidget.setCurrentWidget(self.aiassist_panel)
-        self.tabWidget.setMinimumHeight(460)
-        self.tabWidget.setMaximumHeight(500)
-        self.console.setMinimumHeight(460)
-        self.console.setMaximumHeight(500)
-        self.console.setMinimumWidth(360)
-        self.console.setMaximumWidth(520)
-        self.tabWidget.setMinimumWidth(930)
-        self.horizontalLayout_2.setStretch(0, 7)
-        self.horizontalLayout_2.setStretch(1, 2)
-        self.radarwidget.setMinimumHeight(390)
-        for idx in range(self.verticalLayout.count()):
-            item = self.verticalLayout.itemAt(idx)
-            if item.widget() is self.radarwidget:
-                self.verticalLayout.setStretch(idx, 8)
-            else:
-                self.verticalLayout.setStretch(idx, 0)
+        self.aiassist_panel = AiAssistPanel(self.console, self.radarwidget, self.centralwidget)
+        self.verticalLayout.insertWidget(0, self.aiassist_panel, 1)
+        self.dockWidget.setVisible(False)
+        self.dockWidget.setMinimumHeight(220)
+        self.dockWidget.setMaximumHeight(300)
+        self.menuBar.setVisible(False)
+        for widget in [self.siminfoLabel, self.nodelabel, self.panleft, self.panright,
+                       self.panup, self.pandown, self.zoomin, self.zoomout]:
+            widget.setVisible(False)
         self.aiassist_panel.arm_autoload()
 
         self.nconf_cur = self.nconf_tot = self.nlos_cur = self.nlos_tot = 0
