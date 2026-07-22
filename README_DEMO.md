@@ -13,10 +13,13 @@ This package contains a runnable BlueSky visual demo, a dynamic sector scenario,
 In BlueSky:
 
 1. Open the bottom `AI` tab.
-2. Click `Reset sector`.
-3. Select `Preference`: `speed_first` or `altitude_first`.
-4. Keep `LLM wrapper` as `template_explainer`.
-5. Click `Start auto traffic`.
+2. Select `Three-route demo` or `Chengdu-Chongqing real` from `Map`.
+3. Click `Load map` to reset the simulation and draw the selected route network.
+4. Select `Preference`: `speed_first` or `altitude_first`.
+5. Keep `LLM wrapper` as `template_explainer`.
+6. Click `Start auto traffic`.
+
+The three-route map draws four lightweight crossing corridors. The Chengdu-Chongqing map loads 10 directed real routes and 38 real waypoints. Route overlays and the four-aircraft real-sector initial wave are loaded through batch scenario calls so they do not flood the GUI command queue.
 
 The GUI will spawn aircraft, detect predicted conflicts, issue verified BlueSky commands, and show standard instructions plus a short explanation.
 
@@ -38,6 +41,24 @@ Open a second PowerShell window:
 
 In the `AI` tab, set `LLM wrapper` to `openai_compatible_api`. The GUI will call the local mock endpoint and display the returned explanation. The issued commands still come from the local safety verifier.
 
+### GUI demo with trained Qwen action selector
+
+Start the trained model service on cjj first. The current validated endpoint is:
+
+```text
+http://127.0.0.1:18080/predict
+```
+
+Then run:
+
+```powershell
+.\RUN_BLUESKY_GUI_WITH_QWEN_ACTION_MODEL.ps1
+```
+
+The script opens an SSH tunnel to cjj, sets `ATC_ACTION_API_URL`, and starts BlueSky. During conflict resolution, the GUI first asks the trained Qwen LoRA model to choose action IDs from the compact conflict graph. The selected action IDs are still checked by the local BlueSky forward verifier before any command is issued. If the model call fails, times out, invents an action ID, or fails verification, the original discrete solver is used as fallback.
+
+The merged local model service measured about 3.8 seconds per long conflict-graph request on the validation sample, down from about 7.9 seconds before LoRA merge. vLLM serving is the intended next deployment target once the server environment has vLLM installed.
+
 ### Headless smoke test
 
 ```powershell
@@ -55,6 +76,6 @@ Expected result: `success: true`, `num_loss_events: 0`, and `fallback_calls: 0` 
 
 ## Design Boundary
 
-The LLM layer is an explanation and instruction-generation wrapper. It does not bypass safety verification. The local solver first searches verified altitude and speed actions; the wrapper then converts verified actions into structured fields, standard phraseology, and a rationale.
+The model layer does not bypass safety verification. In the default demo, the local solver first searches verified altitude and speed actions and the wrapper converts verified actions into structured fields, standard phraseology, and a rationale. In the trained-Qwen demo, the model may propose action IDs before the solver, but those actions must pass the same forward verifier before BlueSky commands are issued.
 
 For final safety evidence, use the headless validation result under `headless_validation/results/`. The GUI fallback is for demonstration continuity, not a replacement for the headless verifier.

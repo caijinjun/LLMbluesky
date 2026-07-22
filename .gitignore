@@ -26,7 +26,8 @@ headless_validation/headless_dynamic_logs/
 bluesky_project/data/graphics/world.16384x8192.dds.bak
 bluesky_project/data/graphics/world.8192x4096.dds
 bluesky_project/data/graphics/world.jpg
-bluesky_project/data/navdata/apt.zip
+# Required to build the BlueSky navigation cache on a fresh clone.
+!bluesky_project/data/navdata/apt.zip
 
 # Logs
 *.log

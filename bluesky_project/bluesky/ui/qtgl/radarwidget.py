@@ -755,20 +755,20 @@ class RadarWidget(QGLWidget):
                 if inconf:
                     if actdata.ssd_conflicts:
                         selssd[i] = 255
-                    color[i, :] = palette.conflict + (255,)
                     lat1, lon1 = geo.qdrpos(lat, lon, trk, tcpa * gs / nm)
                     cpalines[4 * confidx : 4 * confidx + 4] = [lat, lon, lat1, lon1]
                     confidx += 1
-                else:
-                    # Get custom color if available, else default
-                    rgb = palette.aircraft
-                    if ingroup:
-                        for groupmask, groupcolor in actdata.custgrclr.items():
-                            if ingroup & groupmask:
-                                rgb = groupcolor
-                                break
-                    rgb = actdata.custacclr.get(acid, rgb)
-                    color[i, :] = tuple(rgb) + (255,)
+
+                # Conflict state is shown by CPA lines and the decision panel.
+                # Keep aircraft symbols at their normal/custom color.
+                rgb = palette.aircraft
+                if ingroup:
+                    for groupmask, groupcolor in actdata.custgrclr.items():
+                        if ingroup & groupmask:
+                            rgb = groupcolor
+                            break
+                rgb = actdata.custacclr.get(acid, rgb)
+                color[i, :] = tuple(rgb) + (255,)
 
                 #  Check if aircraft is selected to show SSD
                 if actdata.ssd_all or acid in actdata.ssd_ownship:

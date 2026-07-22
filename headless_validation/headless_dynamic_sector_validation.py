@@ -1,8 +1,8 @@
 """Headless validation for the dynamic BlueSky ATC sector.
 
-This script runs without the QtGL GUI. It creates a three-route sector, spawns
-up to 14 aircraft at boundary fixes, monitors predicted CPA, issues altitude
-resolution commands, and writes a JSONL event log plus a summary JSON.
+This script runs without the QtGL GUI. It can load the bundled real-sector route
+map, spawn up to 14 aircraft at route entry fixes, monitor predicted CPA, issue
+verified resolution commands, and write a JSONL event log plus a summary JSON.
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from urllib import error, request
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent
@@ -41,9 +42,26 @@ VERIFY_VSEP_FT = 1000.0
 ALT_DELTAS_FL = [10, 20, 30]
 VS_FPM = 2000
 SIM_DT = 1.0
+SCENARIO_MODE = os.environ.get("ATC_SCENARIO_MODE", "standard").strip().lower()
+STRESS_MODE = SCENARIO_MODE in {"stress", "stress_test", "pressure"}
+STAGGERED_STRESS_MODE = SCENARIO_MODE in {"stress_staggered", "staggered_stress", "pressure_staggered"}
+SPEED_STAGGERED_MODE = SCENARIO_MODE in {"speed_staggered", "staggered_speed", "speed_focus"}
+REAL_SECTOR_MODE = SCENARIO_MODE in {"real_chengdu", "real_sector", "chengdu_chongqing"}
+MULTI_EDGE_MODE = SCENARIO_MODE in {
+    "multi3",
+    "multi4",
+    "multi6",
+    "multi_edge3",
+    "multi_edge4",
+    "multi_edge6",
+    "multi_speed3",
+    "multi_edge_speed3",
+}
+PRESSURE_MODE = STRESS_MODE or STAGGERED_STRESS_MODE or SPEED_STAGGERED_MODE or MULTI_EDGE_MODE
+STRESS_DYNAMIC_SPAWN = os.environ.get("ATC_STRESS_DYNAMIC_SPAWN", "0") == "1"
 SIM_DURATION_SEC = float(os.environ.get("ATC_SIM_DURATION_SEC", str(20 * 60)))
 MONITOR_INTERVAL_SEC = 2
-SPAWN_INTERVAL_SEC = float(os.environ.get("ATC_SPAWN_INTERVAL_SEC", "150"))
+SPAWN_INTERVAL_SEC = float(os.environ.get("ATC_SPAWN_INTERVAL_SEC", "90" if PRESSURE_MODE else "150"))
 RNG_SEED = int(os.environ.get("ATC_RNG_SEED", "20260703"))
 LOG_DIR = Path(os.environ.get("ATC_LOG_DIR", WORKSPACE_ROOT / "headless_dynamic_logs"))
 ENTRY_GATE_NM = 12.0
@@ -60,11 +78,17 @@ MIN_SPEED_KT = 250
 MAX_SPEED_KT = 330
 VERIFY_DT_SEC = 2
 SPEED_ACCEL_KT_PER_SEC = 1.0
+HEAD_ON_GEOMETRIES = {"head_on", "head_on_same_corridor"}
 RESOLUTION_PREFERENCE = os.environ.get("ATC_RESOLUTION_PREFERENCE", "speed_first")
+TEACHER_POLICY = os.environ.get("ATC_TEACHER_POLICY", RESOLUTION_PREFERENCE).strip().lower()
 ALLOW_SPEED_ACTIONS = os.environ.get("ATC_ALLOW_SPEED_ACTIONS", "1") == "1"
 MAX_SEARCH_NODES = int(os.environ.get("ATC_MAX_SEARCH_NODES", "100000"))
 SEARCH_TIME_LIMIT_SEC = float(os.environ.get("ATC_SEARCH_TIME_LIMIT_SEC", "5.0"))
 ENABLE_UNVERIFIED_FALLBACK = os.environ.get("ATC_ENABLE_UNVERIFIED_FALLBACK", "0") == "1"
+ACTION_API_URL = os.environ.get("ATC_ACTION_API_URL", "")
+ACTION_API_MODE = os.environ.get("ATC_ACTION_API_MODE", "predict")
+ACTION_API_TIMEOUT_SEC = float(os.environ.get("ATC_ACTION_TIMEOUT_SEC", "12"))
+ACTION_API_MAX_TOKENS = int(os.environ.get("ATC_ACTION_MAX_TOKENS", "160"))
 
 
 WAYPOINTS = {
@@ -86,6 +110,43 @@ ROUTES = [
     {"name": "R3-SWNE", "entry": "SW_IN", "exit": "NE_IN", "hdg": 45, "fls": [310, 330, 350], "speed": (280, 310)},
     {"name": "R3-NESW", "entry": "NE_IN", "exit": "SW_IN", "hdg": 225, "fls": [310, 330, 350], "speed": (280, 310)},
 ]
+
+REAL_SECTOR_ID = None
+if REAL_SECTOR_MODE:
+    real_sector_path = Path(os.environ.get(
+        "ATC_REAL_SECTOR_PATH",
+        BLUESKY_ROOT / "scenario_data" / "chengdu_chongqing_real_sector_v1.json",
+    ))
+    real_sector = json.loads(real_sector_path.read_text(encoding="utf-8"))
+    REAL_SECTOR_ID = real_sector["sector_id"]
+    WAYPOINTS = {}
+    ROUTES = []
+    all_lats = []
+    all_lons = []
+    for route_id in real_sector["route_ids"]:
+        source = real_sector["routes"][route_id]
+        route_points = []
+        for point in source["waypoints"]:
+            lat = float(point["lat"])
+            lon = float(point["lon"])
+            name = str(point["name"])
+            WAYPOINTS[name] = (lat, lon)
+            route_points.append((lat, lon))
+            all_lats.append(lat)
+            all_lons.append(lon)
+        min_fl = int(source.get("route_min_required_fl", 0))
+        ROUTES.append({
+            "name": route_id,
+            "entry": source["entry"],
+            "exit": source["exit"],
+            "hdg": int(round(float(source["initial_bearing_deg"]))) % 360,
+            "fls": [fl for fl in range(280, 381, 20) if fl >= min_fl],
+            "speed": (280, 320),
+            "waypoints": route_points,
+            "route_code": source.get("source_route_code", route_id),
+        })
+    CENTER_LAT = (min(all_lats) + max(all_lats)) / 2.0
+    CENTER_LON = (min(all_lons) + max(all_lons)) / 2.0
 
 AIRCRAFT_TYPES = ["A320", "B738", "A319", "E190"]
 
@@ -118,6 +179,12 @@ def xy_nm(lat: float, lon: float) -> tuple[float, float]:
     x = (lon - CENTER_LON) * 60.0 * math.cos(math.radians(CENTER_LAT))
     y = (lat - CENTER_LAT) * 60.0
     return x, y
+
+
+def latlon_from_xy_nm(x_nm: float, y_nm: float) -> tuple[float, float]:
+    lat = CENTER_LAT + y_nm / 60.0
+    lon = CENTER_LON + x_nm / (60.0 * math.cos(math.radians(CENTER_LAT)))
+    return lat, lon
 
 
 def velocity_nm_min(trk_deg: float, gs_mps: float) -> tuple[float, float]:
@@ -159,6 +226,8 @@ class HeadlessSectorRunner:
         self.min_hsep_nm = float("inf")
         self.min_vsep_ft_when_hloss = float("inf")
         self.loss_events: list[dict] = []
+        self.existing_target_safe_skips = 0
+        self.staggered_events_spawned: set[str] = set()
         LOG_DIR.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         run_token = f"seed{RNG_SEED}_pid{os.getpid()}_{stamp}"
@@ -243,14 +312,17 @@ class HeadlessSectorRunner:
         actype = self.rng.choice(AIRCRAFT_TYPES)
         route = selected_route
         entry_lat, entry_lon = WAYPOINTS[route["entry"]]
-        exit_lat, exit_lon = WAYPOINTS[route["exit"]]
         fl = selected_fl if selected_fl is not None else self.rng.choice(route["fls"])
         speed = selected_speed if selected_speed is not None else self.rng.randint(route["speed"][0], route["speed"][1])
         commands = [
             f"CRE {acid},{actype},{entry_lat:.6f},{entry_lon:.6f},{route['hdg']},FL{fl},{speed}",
-            f"ADDWPT {acid} {exit_lat:.6f} {exit_lon:.6f} FL{fl} {speed}",
-            f"{acid} LNAV ON",
         ]
+        for waypoint_lat, waypoint_lon in route.get("waypoints", [])[1:]:
+            commands.append(f"ADDWPT {acid} {waypoint_lat:.6f} {waypoint_lon:.6f} FL{fl} {speed}")
+        if len(commands) == 1:
+            exit_lat, exit_lon = WAYPOINTS[route["exit"]]
+            commands.append(f"ADDWPT {acid} {exit_lat:.6f} {exit_lon:.6f} FL{fl} {speed}")
+        commands.append(f"{acid} LNAV ON")
         for command in commands:
             self.stack(command)
         self.flush_stack()
@@ -265,7 +337,278 @@ class HeadlessSectorRunner:
         self.log("aircraft_spawned", acid=acid, route=route["name"], fl=fl, speed=speed, commands=commands)
         return acid
 
+    def spawn_aircraft_at_xy(
+        self,
+        route: dict,
+        x_nm: float,
+        y_nm: float,
+        fl: int,
+        speed: int,
+        tag: str,
+    ) -> str | None:
+        if len(self.active_meta) >= MAX_AIRCRAFT:
+            return None
+        self.spawn_index += 1
+        acid = f"DYN{self.spawn_index:03d}"
+        actype = self.rng.choice(AIRCRAFT_TYPES)
+        lat, lon = latlon_from_xy_nm(x_nm, y_nm)
+        exit_lat, exit_lon = WAYPOINTS[route["exit"]]
+        commands = [
+            f"CRE {acid},{actype},{lat:.6f},{lon:.6f},{route['hdg']},FL{fl},{speed}",
+            f"ADDWPT {acid} {exit_lat:.6f} {exit_lon:.6f} FL{fl} {speed}",
+            f"{acid} LNAV ON",
+        ]
+        for command in commands:
+            self.stack(command)
+        self.flush_stack()
+        self.active_meta[acid] = {
+            "type": actype,
+            "route": route["name"],
+            "fl": fl,
+            "speed": speed,
+            "entry": route["entry"],
+            "exit": route["exit"],
+            "stress_tag": tag,
+        }
+        self.log(
+            "aircraft_spawned",
+            acid=acid,
+            route=route["name"],
+            fl=fl,
+            speed=speed,
+            x_nm=x_nm,
+            y_nm=y_nm,
+            stress_tag=tag,
+            commands=commands,
+        )
+        return acid
+
+    def spawn_stress_wave(self) -> None:
+        print("Spawning stress wave...", flush=True)
+        stress_specs = [
+            # Two same-level head-on pairs force vertical resolution.
+            (ROUTES[0], -68.0, 0.0, 340, 310, "head_on_r1_west"),
+            (ROUTES[1], 68.0, 0.0, 340, 300, "head_on_r1_east"),
+            (ROUTES[2], 0.0, 64.0, 370, 300, "head_on_r2_north"),
+            (ROUTES[3], 0.0, -64.0, 370, 295, "head_on_r2_south"),
+            # Crossing/converging/overtaking cases are offset so speed changes can be useful.
+            (ROUTES[0], -40.0, 12.0, 320, 300, "crossing_eastbound"),
+            (ROUTES[3], 0.0, -20.0, 320, 300, "crossing_northbound"),
+            (ROUTES[4], -32.0, -32.0, 330, 300, "converging_diagonal"),
+            (ROUTES[1], 38.0, -4.0, 330, 300, "converging_westbound"),
+            (ROUTES[0], -20.0, -20.0, 350, 280, "overtaking_lead"),
+            (ROUTES[0], -32.0, -20.0, 350, 320, "overtaking_trail"),
+        ]
+        for route, x_nm, y_nm, fl, speed, tag in stress_specs:
+            self.spawn_aircraft_at_xy(route, x_nm, y_nm, fl, speed, tag)
+        self.stack("OP")
+        self.flush_stack()
+        bs.sim.op()
+        bs.sim.fastforward(None)
+        self.monitor_and_resolve()
+        self.log("stress_wave_spawned", ntraf=len(bs.traf.id))
+        print(f"Stress wave ready: commanded={len(self.active_meta)}, ntraf={len(bs.traf.id)}", flush=True)
+
+    def multi_edge_specs(self) -> list[tuple]:
+        if SCENARIO_MODE in {"multi_speed3", "multi_edge_speed3"}:
+            return [
+                (ROUTES[0], -40.0, 12.0, 320, 300, "multi_speed3_eastbound"),
+                (ROUTES[3], 0.0, -20.0, 320, 300, "multi_speed3_northbound"),
+                (ROUTES[4], -23.0, -17.0, 320, 300, "multi_speed3_diagonal_ne"),
+            ]
+        if SCENARIO_MODE in {"multi3", "multi_edge3"}:
+            return [
+                (ROUTES[0], -64.0, 0.0, 340, 300, "multi3_eastbound"),
+                (ROUTES[3], 0.0, -64.0, 340, 300, "multi3_northbound"),
+                (ROUTES[4], -45.0, -45.0, 340, 300, "multi3_diagonal_ne"),
+            ]
+        if SCENARIO_MODE in {"multi4", "multi_edge4"}:
+            return [
+                (ROUTES[0], -64.0, 0.0, 340, 300, "multi4_eastbound"),
+                (ROUTES[3], 0.0, -64.0, 340, 300, "multi4_northbound"),
+                (ROUTES[4], -45.0, -45.0, 340, 300, "multi4_diagonal_ne"),
+                (ROUTES[4], -55.0, -55.0, 360, 300, "multi4_pair_ne"),
+                (ROUTES[5], 55.0, 55.0, 360, 300, "multi4_pair_sw"),
+            ]
+        return [
+            (ROUTES[0], -64.0, 0.0, 340, 300, "multi6_eastbound"),
+            (ROUTES[1], 64.0, 0.0, 340, 300, "multi6_westbound"),
+            (ROUTES[2], 0.0, 64.0, 340, 300, "multi6_southbound"),
+            (ROUTES[3], 0.0, -64.0, 340, 300, "multi6_northbound"),
+        ]
+
+    def spawn_multi_edge_wave(self) -> None:
+        print(f"Spawning multi-edge wave: {SCENARIO_MODE}", flush=True)
+        for route, x_nm, y_nm, fl, speed, tag in self.multi_edge_specs():
+            self.spawn_aircraft_at_xy(route, x_nm, y_nm, fl, speed, tag)
+        self.stack("OP")
+        self.flush_stack()
+        bs.sim.op()
+        bs.sim.fastforward(None)
+        self.monitor_and_resolve()
+        self.log("multi_edge_wave_spawned", scenario_mode=SCENARIO_MODE, ntraf=len(bs.traf.id))
+        print(f"Multi-edge wave ready: commanded={len(self.active_meta)}, ntraf={len(bs.traf.id)}", flush=True)
+
+    def staggered_stress_schedule(self) -> list[tuple[float, str, list[tuple]]]:
+        return [
+            (
+                0.0,
+                "head_on_r1",
+                [
+                    (ROUTES[0], -68.0, 0.0, 340, 310, "staggered_head_on_west"),
+                    (ROUTES[1], 68.0, 0.0, 340, 300, "staggered_head_on_east"),
+                ],
+            ),
+            (
+                180.0,
+                "crossing_r1_r2",
+                [
+                    (ROUTES[0], -40.0, 12.0, 320, 300, "staggered_crossing_eastbound"),
+                    (ROUTES[3], 0.0, -20.0, 320, 300, "staggered_crossing_northbound"),
+                ],
+            ),
+            (
+                360.0,
+                "converging_r3_r1",
+                [
+                    (ROUTES[4], -32.0, -32.0, 330, 300, "staggered_converging_diagonal"),
+                    (ROUTES[1], 38.0, -4.0, 330, 300, "staggered_converging_westbound"),
+                ],
+            ),
+            (
+                540.0,
+                "overtaking_r1",
+                [
+                    (ROUTES[0], -20.0, -20.0, 350, 280, "staggered_overtaking_lead"),
+                    (ROUTES[0], -32.0, -20.0, 350, 320, "staggered_overtaking_trail"),
+                ],
+            ),
+            (
+                720.0,
+                "head_on_r2",
+                [
+                    (ROUTES[2], 0.0, 64.0, 370, 300, "staggered_head_on_north"),
+                    (ROUTES[3], 0.0, -64.0, 370, 295, "staggered_head_on_south"),
+                ],
+            ),
+        ]
+
+    def speed_staggered_schedule(self) -> list[tuple[float, str, list[tuple]]]:
+        return [
+            (
+                0.0,
+                "speed_crossing_r1_r2_a",
+                [
+                    (ROUTES[0], -40.0, 12.0, 320, 300, "speed_crossing_eastbound_a"),
+                    (ROUTES[3], 0.0, -20.0, 320, 300, "speed_crossing_northbound_a"),
+                ],
+            ),
+            (
+                180.0,
+                "speed_converging_r3_r1_a",
+                [
+                    (ROUTES[4], -32.0, -32.0, 330, 300, "speed_converging_diagonal_a"),
+                    (ROUTES[1], 38.0, -4.0, 330, 300, "speed_converging_westbound_a"),
+                ],
+            ),
+            (
+                360.0,
+                "speed_overtaking_r1_a",
+                [
+                    (ROUTES[0], -20.0, -20.0, 350, 280, "speed_overtaking_lead_a"),
+                    (ROUTES[0], -32.0, -20.0, 350, 320, "speed_overtaking_trail_a"),
+                ],
+            ),
+            (
+                540.0,
+                "speed_crossing_r1_r2_b",
+                [
+                    (ROUTES[1], 40.0, -12.0, 340, 300, "speed_crossing_westbound_b"),
+                    (ROUTES[2], 0.0, 20.0, 340, 300, "speed_crossing_southbound_b"),
+                ],
+            ),
+            (
+                720.0,
+                "speed_converging_r3_r1_b",
+                [
+                    (ROUTES[5], 32.0, 32.0, 330, 300, "speed_converging_diagonal_b"),
+                    (ROUTES[0], -38.0, 4.0, 330, 300, "speed_converging_eastbound_b"),
+                ],
+            ),
+            (
+                900.0,
+                "speed_overtaking_r1_b",
+                [
+                    (ROUTES[1], 20.0, 20.0, 360, 280, "speed_overtaking_lead_b"),
+                    (ROUTES[1], 32.0, 20.0, 360, 320, "speed_overtaking_trail_b"),
+                ],
+            ),
+        ]
+
+    def active_staggered_schedule(self) -> list[tuple[float, str, list[tuple]]]:
+        return self.speed_staggered_schedule() if SPEED_STAGGERED_MODE else self.staggered_stress_schedule()
+
+    def spawn_staggered_stress_event(self, event_name: str, specs: list[tuple]) -> None:
+        if event_name in self.staggered_events_spawned:
+            return
+        print(f"Spawning staggered stress event: {event_name}", flush=True)
+        for route, x_nm, y_nm, fl, speed, tag in specs:
+            self.spawn_aircraft_at_xy(route, x_nm, y_nm, fl, speed, tag)
+        self.staggered_events_spawned.add(event_name)
+        self.log("staggered_stress_event_spawned", event_name=event_name, ntraf=len(bs.traf.id))
+
+    def maybe_spawn_staggered_stress(self, simt: float) -> None:
+        if not (STAGGERED_STRESS_MODE or SPEED_STAGGERED_MODE):
+            return
+        for event_time, event_name, specs in self.active_staggered_schedule():
+            if event_name in self.staggered_events_spawned or simt < event_time:
+                continue
+            self.spawn_staggered_stress_event(event_name, specs)
+            self.monitor_and_resolve()
+
     def spawn_initial_wave(self) -> None:
+        if REAL_SECTOR_MODE:
+            print("Spawning Chengdu-Chongqing real-route initial wave...", flush=True)
+            route_by_id = {route["name"]: route for route in ROUTES}
+            initial = [
+                (route_by_id["V69_F001_C01"], 340, False),
+                (route_by_id["V69_F002_C01"], 340, False),
+                (route_by_id["W179_F001_C01"], 320, True),
+                (route_by_id["W231_F001_C01"], 360, True),
+            ]
+            for route, fl, require_safe in initial:
+                self.spawn_aircraft(route, fl, require_safe=require_safe)
+            self.stack("OP")
+            self.flush_stack()
+            bs.sim.op()
+            bs.sim.fastforward(None)
+            self.monitor_and_resolve()
+            self.log(
+                "real_sector_initialized",
+                sector_id=REAL_SECTOR_ID,
+                route_count=len(ROUTES),
+                ntraf=len(bs.traf.id),
+            )
+            print(f"Real sector ready: commanded={len(self.active_meta)}, ntraf={len(bs.traf.id)}", flush=True)
+            return
+        if MULTI_EDGE_MODE:
+            self.spawn_multi_edge_wave()
+            return
+        if STAGGERED_STRESS_MODE or SPEED_STAGGERED_MODE:
+            print("Spawning staggered stress initial event...", flush=True)
+            event_time, event_name, specs = self.active_staggered_schedule()[0]
+            self.spawn_staggered_stress_event(event_name, specs)
+            self.stack("OP")
+            self.flush_stack()
+            bs.sim.op()
+            bs.sim.fastforward(None)
+            self.monitor_and_resolve()
+            self.log("staggered_stress_initialized", ntraf=len(bs.traf.id))
+            print(f"Staggered stress ready: commanded={len(self.active_meta)}, ntraf={len(bs.traf.id)}", flush=True)
+            return
+        if STRESS_MODE:
+            self.spawn_stress_wave()
+            return
         print("Spawning initial wave...", flush=True)
         initial_conflict_specs = [
             (ROUTES[0], ROUTES[1], 340),
@@ -319,12 +662,12 @@ class HeadlessSectorRunner:
         current_fl = int(round(state.alt_ft / 100.0))
         return min(SAFE_LEVELS, key=lambda fl: abs(fl - current_fl))
 
-    def generate_candidate_actions(self, state: AircraftState) -> list[CandidateAction]:
+    def generate_candidate_actions(self, state: AircraftState, suppress_speed: bool = False) -> list[CandidateAction]:
         current_fl = int(round(state.alt_ft / 100.0))
         effective_fl = int(round(self.effective_alt_ft(state) / 100.0))
         current_speed = self.effective_speed_kt(state)
         active_target_fl = self.last_targets.get(state.acid)
-        altitude_locked = active_target_fl is not None
+        altitude_locked = active_target_fl is not None and self.pending_alt_dir(state) != "none"
         candidates: list[CandidateAction] = [
             CandidateAction(
                 acid=state.acid,
@@ -354,7 +697,7 @@ class HeadlessSectorRunner:
                     )
                 )
 
-        if ALLOW_SPEED_ACTIONS:
+        if ALLOW_SPEED_ACTIONS and not suppress_speed and not altitude_locked:
             seen_speeds: set[int] = set()
             for delta in SPEED_DELTAS_KT:
                 target_speed = max(MIN_SPEED_KT, min(MAX_SPEED_KT, current_speed + delta))
@@ -455,6 +798,16 @@ class HeadlessSectorRunner:
         )
         return self.action_pair_is_safe(a, action_a, b, action_b)
 
+    def current_target_action(self, state: AircraftState) -> CandidateAction:
+        return CandidateAction(
+            acid=state.acid,
+            kind="hold",
+            target_fl=int(round(self.effective_alt_ft(state) / 100.0)),
+            target_speed_kt=self.effective_speed_kt(state),
+            command=None,
+            label="current_target",
+        )
+
     def route_meta(self, acid: str) -> dict:
         return self.active_meta.get(acid, {})
 
@@ -510,6 +863,77 @@ class HeadlessSectorRunner:
             return abs(action.target_speed_kt - effective_speed)
         return 0
 
+    def stable_teacher_context(self, detections: list[tuple]) -> dict[str, dict]:
+        context: dict[str, dict] = {}
+        multi_pair = len(detections) > 1
+        for tcpa, hsep, vsep, a, b, _pair in detections:
+            geometry = self.edge_geometry(a, b)
+            effective_vsep = abs(self.effective_alt_ft(a) - self.effective_alt_ft(b))
+            vertical_risk = min(vsep, effective_vsep, abs(a.alt_ft - b.alt_ft)) < VERIFY_VSEP_FT
+            strong_head_on = geometry == "head_on" and vertical_risk
+            urgent_non_head_on = geometry != "head_on" and (tcpa <= 3.0 or hsep < 3.0) and vertical_risk
+            for state in (a, b):
+                item = context.setdefault(
+                    state.acid,
+                    {
+                        "degree": 0,
+                        "geometries": set(),
+                        "strong_head_on": False,
+                        "urgent_non_head_on": False,
+                        "multi_pair": multi_pair,
+                        "speed_chain": False,
+                    },
+                )
+                item["degree"] += 1
+                item["geometries"].add(geometry)
+                item["strong_head_on"] = item["strong_head_on"] or strong_head_on
+                item["urgent_non_head_on"] = item["urgent_non_head_on"] or urgent_non_head_on
+                item["speed_chain"] = item["speed_chain"] or state.acid in self.last_speed_targets
+        for acid, item in context.items():
+            item["geometries"] = sorted(item["geometries"])
+            if TEACHER_POLICY == "speed_focus":
+                item["vertical_preferred"] = item["strong_head_on"] or item["speed_chain"]
+            else:
+                item["vertical_preferred"] = (
+                    item["strong_head_on"]
+                    or item["degree"] > 1
+                    or item["multi_pair"]
+                    or item["urgent_non_head_on"]
+                    or item["speed_chain"]
+                )
+        return context
+
+    def rank_candidate_actions(
+        self,
+        state: AircraftState,
+        actions: list[CandidateAction],
+        teacher_context: dict[str, dict],
+    ) -> list[CandidateAction]:
+        if TEACHER_POLICY not in {"stable", "speed_focus"}:
+            return actions
+
+        effective_fl = int(round(self.effective_alt_ft(state) / 100.0))
+        current_speed = self.effective_speed_kt(state)
+        context = teacher_context.get(state.acid, {})
+        head_on_involved = bool(HEAD_ON_GEOMETRIES & set(context.get("geometries", [])))
+        if head_on_involved:
+            actions = [action for action in actions if action.kind != "speed"]
+        if context.get("vertical_preferred"):
+            order = {"hold": 0, "altitude": 1, "speed": 2}
+        elif RESOLUTION_PREFERENCE == "altitude_first":
+            order = {"hold": 0, "altitude": 1, "speed": 2}
+        else:
+            order = {"hold": 0, "speed": 1, "altitude": 2}
+
+        return sorted(
+            actions,
+            key=lambda action: (
+                order.get(action.kind, 9),
+                abs(action.target_fl - effective_fl),
+                abs(action.target_speed_kt - current_speed),
+            ),
+        )
+
     def level_occupancy(self, state: AircraftState, action: CandidateAction, state_by_id: dict[str, AircraftState]) -> tuple[str, int]:
         if action.kind in {"hold", "speed"}:
             target_fl = int(round(self.effective_alt_ft(state) / 100.0))
@@ -545,8 +969,11 @@ class HeadlessSectorRunner:
         acid: str,
         state_by_id: dict[str, AircraftState],
         selected_label: str | None = None,
+        teacher_context: dict[str, dict] | None = None,
     ) -> tuple[list[list], dict[str, CandidateAction]]:
         state = state_by_id[acid]
+        context = (teacher_context or {}).get(acid, {})
+        head_on_involved = bool(HEAD_ON_GEOMETRIES & set(context.get("geometries", [])))
         effective_fl = int(round(self.effective_alt_ft(state) / 100.0))
         allowed_alt_levels = {
             effective_fl + sign * delta
@@ -556,7 +983,7 @@ class HeadlessSectorRunner:
         }
         encoded: list[list] = []
         action_map: dict[str, CandidateAction] = {}
-        for action in self.generate_candidate_actions(state):
+        for action in self.generate_candidate_actions(state, suppress_speed=head_on_involved):
             keep = action.kind in {"hold", "speed"} or action.target_fl in allowed_alt_levels or action.label == selected_label
             if not keep:
                 continue
@@ -582,12 +1009,14 @@ class HeadlessSectorRunner:
         self,
         detections: list[tuple],
         selected_actions: dict[str, CandidateAction],
+        state_by_id: dict[str, AircraftState],
     ) -> dict:
         if not selected_actions:
             return {
                 "schema": "forward_verification_v1",
                 "safe": False,
                 "verifier": "bluesky_forward_sim",
+                "verifier_scope": "all_aircraft_pairs",
                 "lookahead_min": LOOKAHEAD_MIN,
                 "dt_sec": VERIFY_DT_SEC,
                 "min_hsep_nm": None,
@@ -599,27 +1028,43 @@ class HeadlessSectorRunner:
         min_hsep = float("inf")
         min_vsep_when_hloss = float("inf")
         loss_events = 0
+        unsafe_pairs: list[list] = []
         horizon_sec = int(LOOKAHEAD_MIN * 60)
-        for _tcpa, _hsep, _vsep, a, b, _pair in detections:
-            action_a = selected_actions.get(a.acid)
-            action_b = selected_actions.get(b.acid)
-            if action_a is None or action_b is None:
-                loss_events += 1
-                continue
-            for t_sec in range(0, horizon_sec + VERIFY_DT_SEC, VERIFY_DT_SEC):
-                ax, ay, aalt = self.predicted_state(a, action_a, t_sec)
-                bx, by, balt = self.predicted_state(b, action_b, t_sec)
-                hsep = math.hypot(bx - ax, by - ay)
-                vsep = abs(aalt - balt)
-                min_hsep = min(min_hsep, hsep)
-                if hsep < VERIFY_HSEP_NM:
-                    min_vsep_when_hloss = min(min_vsep_when_hloss, vsep)
-                if hsep < VERIFY_HSEP_NM and vsep < VERIFY_VSEP_FT - VSEP_EPS_FT:
-                    loss_events += 1
+        states = list(state_by_id.values())
+        for i, a in enumerate(states):
+            for b in states[i + 1 :]:
+                action_a = selected_actions.get(a.acid, self.current_target_action(a))
+                action_b = selected_actions.get(b.acid, self.current_target_action(b))
+                pair_failed = False
+                pair_min_hsep = float("inf")
+                pair_min_vsep_when_hloss = float("inf")
+                for t_sec in range(0, horizon_sec + VERIFY_DT_SEC, VERIFY_DT_SEC):
+                    ax, ay, aalt = self.predicted_state(a, action_a, t_sec)
+                    bx, by, balt = self.predicted_state(b, action_b, t_sec)
+                    hsep = math.hypot(bx - ax, by - ay)
+                    vsep = abs(aalt - balt)
+                    min_hsep = min(min_hsep, hsep)
+                    pair_min_hsep = min(pair_min_hsep, hsep)
+                    if hsep < VERIFY_HSEP_NM:
+                        min_vsep_when_hloss = min(min_vsep_when_hloss, vsep)
+                        pair_min_vsep_when_hloss = min(pair_min_vsep_when_hloss, vsep)
+                    if hsep < VERIFY_HSEP_NM and vsep < VERIFY_VSEP_FT - VSEP_EPS_FT:
+                        loss_events += 1
+                        pair_failed = True
+                if pair_failed:
+                    unsafe_pairs.append(
+                        [
+                            a.acid,
+                            b.acid,
+                            round(pair_min_hsep, 2),
+                            None if pair_min_vsep_when_hloss == float("inf") else self.rounded_vsep(pair_min_vsep_when_hloss),
+                        ]
+                    )
         return {
             "schema": "forward_verification_v1",
             "safe": loss_events == 0,
             "verifier": "bluesky_forward_sim",
+            "verifier_scope": "all_aircraft_pairs",
             "lookahead_min": LOOKAHEAD_MIN,
             "dt_sec": VERIFY_DT_SEC,
             "min_hsep_nm": None if min_hsep == float("inf") else round(min_hsep, 2),
@@ -627,6 +1072,8 @@ class HeadlessSectorRunner:
             if min_vsep_when_hloss == float("inf")
             else self.rounded_vsep(min_vsep_when_hloss),
             "loss_events": loss_events,
+            "unsafe_pairs": unsafe_pairs[:20],
+            "checked_pairs": len(states) * (len(states) - 1) // 2,
             "invalid_action_ids": [],
             "fallback_used": False,
         }
@@ -640,6 +1087,7 @@ class HeadlessSectorRunner:
         self.sample_index += 1
         graph_ids = sorted({a.acid for *_prefix, a, b, _pair in detections} | {b.acid for *_prefix, a, b, _pair in detections})
         selected_labels = solver_info.get("selected_actions", {})
+        teacher_context = solver_info.get("stable_teacher_context") or self.stable_teacher_context(detections)
         candidate_actions: dict[str, list[list]] = {}
         action_lookup: dict[str, CandidateAction] = {}
         selected_action_ids: list[str] = []
@@ -647,7 +1095,7 @@ class HeadlessSectorRunner:
         invalid_action_ids: list[str] = []
 
         for acid in graph_ids:
-            encoded, action_map = self.model_candidate_actions(acid, state_by_id, selected_labels.get(acid))
+            encoded, action_map = self.model_candidate_actions(acid, state_by_id, selected_labels.get(acid), teacher_context)
             candidate_actions[acid] = encoded
             action_lookup.update(action_map)
             label = selected_labels.get(acid)
@@ -753,20 +1201,24 @@ class HeadlessSectorRunner:
             if action.kind == "hold":
                 code = "hold_current_clearance"
             elif action.kind == "speed":
-                code = "speed_preference_deconflict" if RESOLUTION_PREFERENCE == "speed_first" else "minimal_deviation"
+                code = "single_edge_speed_deconflict" if TEACHER_POLICY == "stable" else (
+                    "speed_preference_deconflict" if RESOLUTION_PREFERENCE == "speed_first" else "minimal_deviation"
+                )
             else:
-                code = "altitude_preference_deconflict" if RESOLUTION_PREFERENCE == "altitude_first" else "multi_edge_vertical_deconflict"
+                code = "stable_vertical_deconflict" if TEACHER_POLICY == "stable" else (
+                    "altitude_preference_deconflict" if RESOLUTION_PREFERENCE == "altitude_first" else "multi_edge_vertical_deconflict"
+                )
             reason_codes.append([action_id, code])
         if status == "already_safe":
             reason_codes = [[action_id, "current_targets_already_safe"] for action_id in selected_action_ids]
         elif not reason_codes:
             reason_codes = [["none", "no_candidate_passed_verification"]]
 
-        verification = self.verify_selected_actions(detections, selected_actions)
+        verification = self.verify_selected_actions(detections, selected_actions, state_by_id)
         verification["invalid_action_ids"] = invalid_action_ids
         verification["fallback_used"] = bool(solver_info.get("fallback_used"))
 
-        tags = {RESOLUTION_PREFERENCE}
+        tags = {RESOLUTION_PREFERENCE, f"teacher_{TEACHER_POLICY}"}
         tags.add("single_pair" if len(detections) == 1 else "multi_pair")
         degrees = {acid: 0 for acid in graph_ids}
         for _tcpa, _hsep, _vsep, a, b, _pair in detections:
@@ -803,7 +1255,11 @@ class HeadlessSectorRunner:
             },
             "context": {
                 "preference": RESOLUTION_PREFERENCE,
+                "teacher_policy": TEACHER_POLICY,
                 "allow_altitude_reversal": False,
+                "verifier_scope": "all_aircraft_pairs",
+                "head_on_speed_mask": True,
+                "altitude_soft_lock": True,
             },
             "constraints": {
                 "lookahead_min": LOOKAHEAD_MIN,
@@ -842,6 +1298,9 @@ class HeadlessSectorRunner:
                 "schema": "qwen_conflict_choice_input_v1_1",
                 "pref": RESOLUTION_PREFERENCE,
                 "limits": [LOOKAHEAD_MIN, VERIFY_HSEP_NM, int(VERIFY_VSEP_FT)],
+                "verifier_scope": "all_aircraft_pairs",
+                "head_on_speed_mask": True,
+                "altitude_soft_lock": True,
                 "aircraft": aircraft_rows,
                 "edges": edge_rows,
                 "actions": candidate_actions,
@@ -862,6 +1321,201 @@ class HeadlessSectorRunner:
                 "log_path": str(self.log_path),
             },
         }
+
+    def build_model_choice_input(
+        self,
+        state_by_id: dict[str, AircraftState],
+        detections: list[tuple],
+        graph_ids: list[str],
+        teacher_context: dict[str, dict] | None = None,
+    ) -> tuple[dict, dict[str, CandidateAction]]:
+        candidate_actions: dict[str, list[list]] = {}
+        action_lookup: dict[str, CandidateAction] = {}
+        aircraft_rows = []
+        for acid in graph_ids:
+            encoded, action_map = self.model_candidate_actions(acid, state_by_id, teacher_context=teacher_context)
+            candidate_actions[acid] = encoded
+            action_lookup.update(action_map)
+            state = state_by_id[acid]
+            meta = self.route_meta(acid)
+            aircraft_rows.append(
+                [
+                    acid,
+                    meta.get("route", "unknown"),
+                    int(round(state.alt_ft / 100.0)),
+                    int(round(state.trk)),
+                    self.effective_speed_kt(state),
+                    int(round(self.effective_alt_ft(state) / 100.0)),
+                    self.effective_speed_kt(state),
+                    self.pending_alt_dir(state),
+                ]
+            )
+        edge_rows = []
+        for tcpa, hsep, vsep, a, b, _pair in detections:
+            hnow = current_hsep_nm(a, b)
+            vnow = abs(a.alt_ft - b.alt_ft)
+            edge_rows.append(
+                [
+                    a.acid,
+                    b.acid,
+                    self.edge_geometry(a, b),
+                    round(tcpa, 1),
+                    round(hsep, 1),
+                    self.rounded_vsep(vsep),
+                    round(hnow, 1),
+                    self.rounded_vsep(vnow),
+                    self.heading_delta_deg(a.trk, b.trk),
+                    self.risk_bucket(tcpa, hsep, hnow),
+                ]
+            )
+        return (
+            {
+                "schema": "qwen_conflict_choice_input_v1_1",
+                "pref": RESOLUTION_PREFERENCE,
+                "limits": [LOOKAHEAD_MIN, VERIFY_HSEP_NM, int(VERIFY_VSEP_FT)],
+                "verifier_scope": "all_aircraft_pairs",
+                "head_on_speed_mask": True,
+                "altitude_soft_lock": True,
+                "aircraft": aircraft_rows,
+                "edges": edge_rows,
+                "actions": candidate_actions,
+            },
+            action_lookup,
+        )
+
+    def parse_action_model_text(self, raw: str) -> dict:
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").strip()
+            if raw.lower().startswith("json"):
+                raw = raw[4:].strip()
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end >= start:
+            raw = raw[start:end + 1]
+        return json.loads(raw)
+
+    def call_action_model(self, model_input: dict) -> dict:
+        if not ACTION_API_URL:
+            return {"ok": False, "skipped": True, "error": "ATC_ACTION_API_URL is not set"}
+        instruction = (
+            "You are an ATC conflict-resolution decision selector. Given a compact conflict graph and available "
+            "candidate actions, select action IDs that resolve predicted conflicts while respecting safety limits "
+            "and controller preference. Return JSON only with fields: schema, status, actions, reason_codes. "
+            "Do not invent action IDs. Do not output BlueSky commands."
+        )
+        if ACTION_API_URL.endswith("/predict") or ACTION_API_MODE.lower() == "predict":
+            body = {
+                "instruction": instruction,
+                "input": json.dumps(model_input, ensure_ascii=False, separators=(",", ":")),
+                "max_new_tokens": ACTION_API_MAX_TOKENS,
+                "return_raw": True,
+            }
+        else:
+            body = {
+                "model": os.environ.get("ATC_ACTION_MODEL", os.environ.get("ATC_LLM_MODEL", "qwen3-4b")),
+                "messages": [
+                    {"role": "system", "content": instruction},
+                    {"role": "user", "content": instruction + "\n\nInput:\n" + json.dumps(model_input, ensure_ascii=False, separators=(",", ":"))},
+                ],
+                "temperature": 0,
+                "max_tokens": ACTION_API_MAX_TOKENS,
+            }
+        headers = {"Content-Type": "application/json"}
+        api_key = os.environ.get("ATC_ACTION_API_KEY", os.environ.get("ATC_LLM_API_KEY", ""))
+        if api_key:
+            headers["Authorization"] = "Bearer " + api_key
+        started = time.perf_counter()
+        req = request.Request(ACTION_API_URL, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+        try:
+            with request.urlopen(req, timeout=ACTION_API_TIMEOUT_SEC) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+        except (error.URLError, TimeoutError, OSError) as exc:
+            return {"ok": False, "error": str(exc), "latency_sec": round(time.perf_counter() - started, 3)}
+        try:
+            parsed = json.loads(raw)
+            if "output" in parsed:
+                output = parsed["output"]
+            else:
+                output = self.parse_action_model_text(parsed["choices"][0]["message"]["content"])
+            return {"ok": True, "output": output, "raw": raw[:1200], "latency_sec": round(time.perf_counter() - started, 3)}
+        except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            return {
+                "ok": False,
+                "error": f"parse_error: {exc}",
+                "raw": raw[:1200],
+                "latency_sec": round(time.perf_counter() - started, 3),
+            }
+
+    def try_model_resolution_plan(
+        self,
+        state_by_id: dict[str, AircraftState],
+        detections: list[tuple],
+        graph: dict[str, set[str]],
+        teacher_context: dict[str, dict],
+    ) -> tuple[list[str] | None, dict]:
+        graph_ids = sorted(graph)
+        model_input, action_lookup = self.build_model_choice_input(state_by_id, detections, graph_ids, teacher_context)
+        api_result = self.call_action_model(model_input)
+        base_info = {
+            "method": "llm_action_selector",
+            "preference": RESOLUTION_PREFERENCE,
+            "num_conflict_aircraft": len(graph_ids),
+            "num_conflict_pairs": len(detections),
+            "verifier_scope": "all_aircraft_pairs",
+            "head_on_speed_mask": True,
+            "altitude_soft_lock": True,
+            "model_input": model_input,
+            "model_api": api_result,
+            "selected_actions": {},
+            "fallback_used": False,
+        }
+        if not api_result.get("ok"):
+            base_info["success"] = False
+            base_info["rejection_reason"] = api_result.get("error", "model_call_failed")
+            return None, base_info
+        output = api_result.get("output") or {}
+        selected_ids = output.get("actions") or []
+        selected_actions: dict[str, CandidateAction] = {}
+        invalid_action_ids = []
+        for action_id in selected_ids:
+            action = action_lookup.get(action_id)
+            if action is None:
+                invalid_action_ids.append(str(action_id))
+                continue
+            selected_actions[action.acid] = action
+        for acid in graph_ids:
+            if acid not in selected_actions:
+                hold = action_lookup.get(f"{acid}_hold")
+                if hold is None:
+                    invalid_action_ids.append(f"{acid}_hold")
+                else:
+                    selected_actions[acid] = hold
+        verification = self.verify_selected_actions(detections, selected_actions, state_by_id)
+        verification["invalid_action_ids"] = invalid_action_ids
+        base_info.update(
+            {
+                "model_status": output.get("status"),
+                "model_reason_codes": output.get("reason_codes"),
+                "selected_action_ids": selected_ids,
+                "selected_actions": {acid: action.label for acid, action in sorted(selected_actions.items())},
+                "verification": verification,
+            }
+        )
+        if invalid_action_ids:
+            base_info["success"] = False
+            base_info["method"] = "llm_action_selector_rejected"
+            base_info["rejection_reason"] = "invalid_action_ids"
+            return None, base_info
+        if not verification.get("safe"):
+            base_info["success"] = False
+            base_info["method"] = "llm_action_selector_rejected"
+            base_info["rejection_reason"] = "forward_verification_failed"
+            return None, base_info
+        base_info["success"] = True
+        base_info["method"] = "llm_action_selector_verified"
+        commands = self.commands_from_solution(selected_actions, state_by_id)
+        return commands, base_info
 
     def monitor_and_resolve(self) -> None:
         states = self.get_states()
@@ -884,9 +1538,11 @@ class HeadlessSectorRunner:
                 target_vsep = abs(self.effective_alt_ft(a) - self.effective_alt_ft(b))
                 current_vsep = abs(a.alt_ft - b.alt_ft)
                 if hsep < PREDICT_GATE_NM and (target_vsep < VERIFY_VSEP_FT or current_vsep < VERIFY_VSEP_FT):
-                    if not self.current_targets_are_safe(a, b):
-                        self.last_targets.pop(a.acid, None)
-                        self.last_targets.pop(b.acid, None)
+                    if self.current_targets_are_safe(a, b):
+                        self.existing_target_safe_skips += 1
+                        continue
+                    self.last_targets.pop(a.acid, None)
+                    self.last_targets.pop(b.acid, None)
                     detections.append((tcpa, hsep, vsep, a, b, pair))
 
         detections.sort(key=lambda item: (item[0], item[1]))
@@ -938,34 +1594,61 @@ class HeadlessSectorRunner:
             urgency[a.acid] = min(urgency.get(a.acid, float("inf")), tcpa)
             urgency[b.acid] = min(urgency.get(b.acid, float("inf")), tcpa)
 
-        actions_by_acid = {acid: self.generate_candidate_actions(state_by_id[acid]) for acid in graph}
+        teacher_context = self.stable_teacher_context(detections)
+        model_attempt = None
+        if ACTION_API_URL:
+            model_commands, model_info = self.try_model_resolution_plan(state_by_id, detections, graph, teacher_context)
+            model_attempt = model_info
+            if model_commands is not None:
+                return model_commands, model_info
+
+        actions_by_acid = {
+            acid: self.rank_candidate_actions(
+                state_by_id[acid],
+                self.generate_candidate_actions(
+                    state_by_id[acid],
+                    suppress_speed=bool(HEAD_ON_GEOMETRIES & set(teacher_context.get(acid, {}).get("geometries", []))),
+                ),
+                teacher_context,
+            )
+            for acid in graph
+        }
         order = sorted(graph, key=lambda acid: (-len(graph[acid]), urgency.get(acid, float("inf")), acid))
         checked_nodes = 0
         search_limited = False
         search_started = time.perf_counter()
-        pair_cache: dict[tuple[str, int, str, int], bool] = {}
-        action_index = {
-            acid: {action: idx for idx, action in enumerate(actions)}
-            for acid, actions in actions_by_acid.items()
+        pair_cache: dict[tuple, bool] = {}
+        fixed_actions = {
+            acid: self.current_target_action(state)
+            for acid, state in state_by_id.items()
+            if acid not in graph
         }
 
+        def pair_cache_key(a_id: str, a_action: CandidateAction, b_id: str, b_action: CandidateAction) -> tuple:
+            return (
+                a_id,
+                a_action.kind,
+                a_action.target_fl,
+                a_action.target_speed_kt,
+                b_id,
+                b_action.kind,
+                b_action.target_fl,
+                b_action.target_speed_kt,
+            )
+
         def compatible(acid: str, action: CandidateAction, assigned: dict[str, CandidateAction]) -> bool:
-            for neighbor in graph[acid]:
-                if neighbor not in assigned:
+            probe = {**fixed_actions, **assigned, acid: action}
+            for other_id, other_action in probe.items():
+                if other_id == acid:
                     continue
-                left, right = sorted([acid, neighbor])
+                left, right = sorted([acid, other_id])
                 if acid == left:
                     a_id, a_action = acid, action
-                    b_id, b_action = neighbor, assigned[neighbor]
+                    b_id, b_action = other_id, other_action
                 else:
-                    a_id, a_action = neighbor, assigned[neighbor]
+                    a_id, a_action = other_id, other_action
                     b_id, b_action = acid, action
-                key = (
-                    left,
-                    action_index[left][a_action],
-                    right,
-                    action_index[right][b_action],
-                )
+                key = pair_cache_key(a_id, a_action, b_id, b_action)
                 if key not in pair_cache:
                     pair_cache[key] = self.action_pair_is_safe(state_by_id[a_id], a_action, state_by_id[b_id], b_action)
                 if not pair_cache[key]:
@@ -979,7 +1662,8 @@ class HeadlessSectorRunner:
                 search_limited = True
                 return None
             if len(assigned) >= len(order):
-                return dict(assigned)
+                verification = self.verify_selected_actions(detections, assigned, state_by_id)
+                return dict(assigned) if verification.get("safe") else None
             best_acid = None
             best_actions = None
             for acid in order:
@@ -1017,12 +1701,21 @@ class HeadlessSectorRunner:
                 "num_conflict_pairs": len(detections),
                 "search_nodes": checked_nodes,
                 "pair_checks": len(pair_cache),
+                "verifier_scope": "all_aircraft_pairs",
+                "non_conflict_aircraft_checked": len(fixed_actions),
+                "head_on_speed_mask": True,
+                "altitude_soft_lock": True,
                 "search_limited": search_limited,
                 "search_time_limit_sec": SEARCH_TIME_LIMIT_SEC,
                 "max_search_nodes": MAX_SEARCH_NODES,
+                "teacher_policy": TEACHER_POLICY,
+                "stable_teacher_context": teacher_context if TEACHER_POLICY == "stable" else {},
                 "selected_actions": {acid: action.label for acid, action in sorted(solution.items())},
                 "fallback_used": False,
             }
+            if model_attempt is not None:
+                info["llm_action_selector"] = model_attempt
+                info["model_fallback_used"] = True
             return commands, info
 
         if ENABLE_UNVERIFIED_FALLBACK:
@@ -1040,12 +1733,21 @@ class HeadlessSectorRunner:
             "num_conflict_pairs": len(detections),
             "search_nodes": checked_nodes,
             "pair_checks": len(pair_cache),
+            "verifier_scope": "all_aircraft_pairs",
+            "non_conflict_aircraft_checked": len(fixed_actions),
+            "head_on_speed_mask": True,
+            "altitude_soft_lock": True,
             "search_limited": search_limited,
             "search_time_limit_sec": SEARCH_TIME_LIMIT_SEC,
             "max_search_nodes": MAX_SEARCH_NODES,
+            "teacher_policy": TEACHER_POLICY,
+            "stable_teacher_context": teacher_context if TEACHER_POLICY == "stable" else {},
             "selected_actions": {},
             "fallback_used": fallback_used,
         }
+        if model_attempt is not None:
+            info["llm_action_selector"] = model_attempt
+            info["model_fallback_used"] = True
         return commands, info
 
     def commands_from_solution(self, solution: dict[str, CandidateAction], state_by_id: dict[str, AircraftState]) -> list[str]:
@@ -1129,8 +1831,9 @@ class HeadlessSectorRunner:
         next_monitor = 0
         while float(bs.sim.simt) < SIM_DURATION_SEC:
             simt = float(bs.sim.simt)
-            if simt >= next_spawn and len(self.active_meta) < MAX_AIRCRAFT:
-                self.spawn_aircraft(self.rng.choice(ROUTES))
+            self.maybe_spawn_staggered_stress(simt)
+            if simt >= next_spawn and len(self.active_meta) < MAX_AIRCRAFT and (not PRESSURE_MODE or STRESS_DYNAMIC_SPAWN):
+                self.spawn_aircraft(self.rng.choice(ROUTES), require_safe=not PRESSURE_MODE)
                 next_spawn += SPAWN_INTERVAL_SEC
             if simt >= next_monitor:
                 self.monitor_and_resolve()
@@ -1140,8 +1843,14 @@ class HeadlessSectorRunner:
                 print(f"simt={simt:.0f}s ntraf={len(bs.traf.id)} commands={len(self.commands_issued)} los={len(self.loss_events)}", flush=True)
 
         self.monitor_and_resolve()
+        model_attempts = [item.get("llm_action_selector") or item for item in self.solver_stats if item.get("method", "").startswith("llm_action_selector") or item.get("llm_action_selector")]
         summary = {
             "success": len(self.loss_events) == 0,
+            "scenario_mode": SCENARIO_MODE,
+            "sector_id": REAL_SECTOR_ID,
+            "route_count": len(ROUTES),
+            "stress_dynamic_spawn": STRESS_DYNAMIC_SPAWN,
+            "staggered_events_spawned": sorted(self.staggered_events_spawned),
             "sim_duration_sec": SIM_DURATION_SEC,
             "ntraf_final": len(bs.traf.id),
             "commands_issued": self.commands_issued,
@@ -1152,8 +1861,16 @@ class HeadlessSectorRunner:
             "min_hsep_nm": self.min_hsep_nm,
             "min_vsep_ft_when_hsep_lt_5nm": None if self.min_vsep_ft_when_hloss == float("inf") else self.min_vsep_ft_when_hloss,
             "solver_method": "discrete_constraint_search",
+            "teacher_policy": TEACHER_POLICY,
             "solver_calls": len(self.solver_stats),
+            "existing_target_safe_skips": self.existing_target_safe_skips,
             "fallback_calls": sum(1 for item in self.solver_stats if item.get("fallback_used")),
+            "model_selector_enabled": bool(ACTION_API_URL),
+            "model_selector_calls": len(model_attempts),
+            "model_selector_accepted": sum(1 for item in model_attempts if item.get("method") == "llm_action_selector_verified" and item.get("success")),
+            "model_selector_rejected": sum(1 for item in model_attempts if item.get("method") == "llm_action_selector_rejected"),
+            "model_selector_errors": sum(1 for item in model_attempts if item.get("method") == "llm_action_selector" and not item.get("success")),
+            "model_selector_fallback_calls": sum(1 for item in self.solver_stats if item.get("model_fallback_used")),
             "online_verify_hsep_nm": VERIFY_HSEP_NM,
             "online_verify_vsep_ft": VERIFY_VSEP_FT,
             "online_verify_dt_sec": VERIFY_DT_SEC,

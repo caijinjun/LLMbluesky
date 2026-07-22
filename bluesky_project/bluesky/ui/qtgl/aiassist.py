@@ -1,8 +1,8 @@
 """Dynamic ATC human-machine decision panel for BlueSky QtGL.
 
-The panel builds a sector with three route corridors, spawns aircraft at sector
-boundary fixes, monitors live BlueSky ACDATA, detects predicted separation loss,
-and issues rule-based controller commands with a persistent decision log.
+The panel loads a real-sector route map, spawns aircraft at route entry fixes,
+monitors live BlueSky ACDATA, detects predicted separation loss, and issues
+verified controller commands with a persistent decision log.
 """
 from datetime import datetime
 import json
@@ -14,6 +14,7 @@ from time import monotonic
 from urllib import request, error
 
 from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QTextCursor
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit,
     QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
@@ -28,13 +29,107 @@ NM_PER_METER = 1.0 / 1852.0
 KT_PER_MPS = 1.9438444924406
 
 
+def _load_real_sector():
+    path = Path(__file__).resolve().parents[3] / "scenario_data" / "chengdu_chongqing_real_sector_v1.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    waypoints = {}
+    routes = []
+    all_lats = []
+    all_lons = []
+    for route_id in data["route_ids"]:
+        source = data["routes"][route_id]
+        route_points = []
+        for point in source["waypoints"]:
+            lat = float(point["lat"])
+            lon = float(point["lon"])
+            name = str(point["name"])
+            waypoints[name] = (lat, lon)
+            route_points.append((lat, lon))
+            all_lats.append(lat)
+            all_lons.append(lon)
+        min_fl = int(source.get("route_min_required_fl", 0))
+        flight_levels = [fl for fl in range(280, 381, 20) if fl >= min_fl]
+        routes.append({
+            "route": route_id,
+            "entry": source["entry"],
+            "exit": source["exit"],
+            "hdg": int(round(float(source["initial_bearing_deg"]))) % 360,
+            "fls": flight_levels,
+            "speed": (280, 320),
+            "waypoints": route_points,
+            "route_code": source.get("source_route_code", route_id),
+        })
+    bounds = (min(all_lats), min(all_lons), max(all_lats), max(all_lons))
+    center = ((bounds[0] + bounds[2]) / 2.0, (bounds[1] + bounds[3]) / 2.0)
+    return data["sector_id"], waypoints, routes, bounds, center
+
+
+REAL_SECTOR_ID, REAL_WAYPOINTS, REAL_ROUTES, REAL_BOUNDS, REAL_CENTER = _load_real_sector()
+
+DEMO_WAYPOINTS = {
+    "W_IN": (30.7000, 102.7500),
+    "E_IN": (30.7000, 105.4500),
+    "N_IN": (31.8500, 104.1000),
+    "S_IN": (29.5500, 104.1000),
+    "SW_IN": (29.7500, 103.1500),
+    "NE_IN": (31.6500, 105.0500),
+    "NW_IN": (31.6500, 103.1500),
+    "SE_IN": (29.7500, 105.0500),
+}
+
+DEMO_ROUTES = [
+    {"route": "R1-EW", "entry": "W_IN", "exit": "E_IN", "hdg": 90, "fls": [320, 340, 360], "speed": (290, 320)},
+    {"route": "R1-WE", "entry": "E_IN", "exit": "W_IN", "hdg": 270, "fls": [320, 340, 360], "speed": (290, 320)},
+    {"route": "R2-NS", "entry": "N_IN", "exit": "S_IN", "hdg": 180, "fls": [330, 350, 370], "speed": (280, 310)},
+    {"route": "R2-SN", "entry": "S_IN", "exit": "N_IN", "hdg": 0, "fls": [330, 350, 370], "speed": (280, 310)},
+    {"route": "R3-SWNE", "entry": "SW_IN", "exit": "NE_IN", "hdg": 45, "fls": [310, 330, 350], "speed": (280, 310)},
+    {"route": "R3-NESW", "entry": "NE_IN", "exit": "SW_IN", "hdg": 225, "fls": [310, 330, 350], "speed": (280, 310)},
+    {"route": "R3-NWSE", "entry": "NW_IN", "exit": "SE_IN", "hdg": 135, "fls": [300, 340, 380], "speed": (270, 300)},
+    {"route": "R3-SENW", "entry": "SE_IN", "exit": "NW_IN", "hdg": 315, "fls": [300, 340, 380], "speed": (270, 300)},
+]
+for demo_route in DEMO_ROUTES:
+    demo_route["waypoints"] = [
+        DEMO_WAYPOINTS[demo_route["entry"]],
+        DEMO_WAYPOINTS[demo_route["exit"]],
+    ]
+    demo_route["route_code"] = demo_route["route"]
+
+MAP_CONFIGS = {
+    "three_route_demo": {
+        "label": "Three-route demo",
+        "scenario_name": "ATC_HMI_DYNAMIC_14AC_SECTOR",
+        "sector_id": "three_route_demo_sector",
+        "waypoints": DEMO_WAYPOINTS,
+        "routes": DEMO_ROUTES,
+        "bounds": (29.5500, 102.7500, 31.8500, 105.4500),
+        "center": (30.7000, 104.1000),
+        "zoom": 0.22,
+        "visual_scenario": "ATC_HMI_MAP_THREE_ROUTE",
+        "description": "Three-route demonstration sector",
+    },
+    "chengdu_chongqing_real": {
+        "label": "Chengdu-Chongqing real routes",
+        "scenario_name": "ATC_HMI_REAL_CHENGDU_CHONGQING_SECTOR",
+        "sector_id": REAL_SECTOR_ID,
+        "waypoints": REAL_WAYPOINTS,
+        "routes": REAL_ROUTES,
+        "bounds": REAL_BOUNDS,
+        "center": REAL_CENTER,
+        "zoom": 0.12,
+        "visual_scenario": "ATC_HMI_MAP_CHENGDU_ROUTES",
+        "description": "Chengdu-Chongqing real-route sector",
+    },
+}
+
+
 class AiAssistPanel(QWidget):
     """Dynamic controller-assist panel embedded in the BlueSky bottom tabs."""
 
-    SCENARIO_NAME = "ATC_HMI_DYNAMIC_14AC_SECTOR"
-    CENTER_LAT = 30.7000
-    CENTER_LON = 104.1000
-    ZOOM = 0.22
+    DEFAULT_MAP_KEY = "chengdu_chongqing_real"
+    SCENARIO_NAME = MAP_CONFIGS[DEFAULT_MAP_KEY]["scenario_name"]
+    CENTER_LAT = MAP_CONFIGS[DEFAULT_MAP_KEY]["center"][0]
+    CENTER_LON = MAP_CONFIGS[DEFAULT_MAP_KEY]["center"][1]
+    ZOOM = MAP_CONFIGS[DEFAULT_MAP_KEY]["zoom"]
     MAX_AIRCRAFT = 14
     LOOKAHEAD_MIN = 20.0
     HSEP_NM = 5.0
@@ -56,33 +151,24 @@ class AiAssistPanel(QWidget):
     ENTRY_VERIFY_DT_SEC = 10
     SPAWN_RETRY_LIMIT = 16
     MAX_SPAWN_COMMAND_BACKLOG = 8
+    COMMAND_INTERVAL_MS = 300
+    STATUS_UPDATE_MIN_SEC = 0.5
+    EXECUTION_UPDATE_MIN_SEC = 0.8
+    ALT_REACHED_TOLERANCE_FT = 150.0
+    SPEED_REACHED_TOLERANCE_KT = 5.0
+    EXECUTION_START_ALT_DELTA_FT = 50.0
+    EXECUTION_START_SPEED_DELTA_KT = 2.0
+    TRACKED_SAFE_CHECK_INTERVAL_SEC = 2.0
+    LOG_TEXT_MAX_LINES = 80
     MAX_SOLVER_NODES = 6000
     SOLVER_TIME_BUDGET_SEC = 0.55
     MAX_TRACKED_CONFLICTS = 28
     LOG_DIR = Path(__file__).resolve().parents[3] / "output" / "hmi_dynamic_logs"
 
-    WAYPOINTS = {
-        "W_IN": (30.7000, 102.7500),
-        "E_IN": (30.7000, 105.4500),
-        "N_IN": (31.8500, 104.1000),
-        "S_IN": (29.5500, 104.1000),
-        "SW_IN": (29.7500, 103.1500),
-        "NE_IN": (31.6500, 105.0500),
-        "NW_IN": (31.6500, 103.1500),
-        "SE_IN": (29.7500, 105.0500),
-        "MIDFIX": (30.7000, 104.1000),
-    }
-
-    ROUTES = [
-        {"route": "R1-EW", "entry": "W_IN", "exit": "E_IN", "hdg": 90, "fls": [320, 340, 360], "speed": (290, 320)},
-        {"route": "R1-WE", "entry": "E_IN", "exit": "W_IN", "hdg": 270, "fls": [320, 340, 360], "speed": (290, 320)},
-        {"route": "R2-NS", "entry": "N_IN", "exit": "S_IN", "hdg": 180, "fls": [330, 350, 370], "speed": (280, 310)},
-        {"route": "R2-SN", "entry": "S_IN", "exit": "N_IN", "hdg": 0, "fls": [330, 350, 370], "speed": (280, 310)},
-        {"route": "R3-SWNE", "entry": "SW_IN", "exit": "NE_IN", "hdg": 45, "fls": [310, 330, 350], "speed": (280, 310)},
-        {"route": "R3-NESW", "entry": "NE_IN", "exit": "SW_IN", "hdg": 225, "fls": [310, 330, 350], "speed": (280, 310)},
-        {"route": "R3-NWSE", "entry": "NW_IN", "exit": "SE_IN", "hdg": 135, "fls": [300, 340, 380], "speed": (270, 300)},
-        {"route": "R3-SENW", "entry": "SE_IN", "exit": "NW_IN", "hdg": 315, "fls": [300, 340, 380], "speed": (270, 300)},
-    ]
+    WAYPOINTS = MAP_CONFIGS[DEFAULT_MAP_KEY]["waypoints"]
+    ROUTES = MAP_CONFIGS[DEFAULT_MAP_KEY]["routes"]
+    SECTOR_BOUNDS = MAP_CONFIGS[DEFAULT_MAP_KEY]["bounds"]
+    REAL_SECTOR_ID = MAP_CONFIGS[DEFAULT_MAP_KEY]["sector_id"]
 
     AIRCRAFT_TYPES = ["A320", "B738", "A319", "E190"]
 
@@ -90,13 +176,15 @@ class AiAssistPanel(QWidget):
         super(AiAssistPanel, self).__init__(parent)
         self.console = console
         self.rng = random.Random(20260703)
+        self.current_map_key = self.DEFAULT_MAP_KEY
+        self._apply_map_config(self.current_map_key)
         self.spawn_timer = QTimer(self)
         self.detect_timer = QTimer(self)
         self.command_timer = QTimer(self)
         self.spawn_timer.timeout.connect(self.spawn_random_aircraft)
         self.detect_timer.timeout.connect(self.detect_and_resolve)
         self.command_timer.timeout.connect(self._drain_command_queue)
-        self.command_timer.setInterval(120)
+        self.command_timer.setInterval(self.COMMAND_INTERVAL_MS)
         self._autoload_done = False
         self.command_queue = []
         self.spawn_index = 0
@@ -107,7 +195,6 @@ class AiAssistPanel(QWidget):
         self.assigned_aircraft = set()
         self.last_targets = {}
         self.last_speeds = {}
-        self.last_aircraft_colors = {}
         self.issued_commands = set()
         self.command_records = []
         self.event_rows = []
@@ -118,7 +205,14 @@ class AiAssistPanel(QWidget):
         self.last_llm_status = "idle"
         self.detect_busy = False
         self.log_path = None
+        self.latest_sim_time = None
+        self.last_detect_wall_ts = 0.0
         self._connected_net = None
+        self._last_status_update_ts = 0.0
+        self._last_execution_update_ts = 0.0
+        self._last_conflict_table_signature = None
+        self._last_command_status_by_row = {}
+        self._tracked_safe_cache = {}
         self.reset_pending_until = 0.0
         self.pending_start = False
         self._build_ui()
@@ -137,9 +231,8 @@ class AiAssistPanel(QWidget):
         title.setStyleSheet("font-weight: bold; color: #12351f; font-size: 12px;")
         layout.addWidget(title)
 
-        info = QLabel(
-            "Three-route sector. Random boundary spawn, max 14 aircraft. CPA conflicts and issued commands are shown below."
-        )
+        self.map_info = QLabel("")
+        info = self.map_info
         info.setWordWrap(True)
         info.setStyleSheet("color: #1f2a22;")
         layout.addWidget(info)
@@ -159,6 +252,14 @@ class AiAssistPanel(QWidget):
         layout.addLayout(btnrow)
 
         option_row = QHBoxLayout()
+        option_row.addWidget(QLabel("Map"))
+        self.map_combo = QComboBox(self)
+        self.map_combo.addItem("Three-route demo", "three_route_demo")
+        self.map_combo.addItem("Chengdu-Chongqing real", "chengdu_chongqing_real")
+        self.map_combo.setCurrentIndex(self.map_combo.findData(self.current_map_key))
+        option_row.addWidget(self.map_combo)
+        self.load_map_btn = QPushButton("Load map")
+        option_row.addWidget(self.load_map_btn)
         option_row.addWidget(QLabel("Preference"))
         self.preference_combo = QComboBox(self)
         self.preference_combo.addItems(["altitude_first", "speed_first"])
@@ -210,10 +311,12 @@ class AiAssistPanel(QWidget):
         self.stop_btn.clicked.connect(self.stop_auto_traffic)
         self.spawn_btn.clicked.connect(self.spawn_random_aircraft)
         self.detect_btn.clicked.connect(self.detect_and_resolve)
-        self.op_btn.clicked.connect(lambda: self._stack("OP"))
+        self.op_btn.clicked.connect(self.operate_simulation)
         self.fast_btn.clicked.connect(self.fast_forward_demo)
         self.hold_btn.clicked.connect(lambda: self._stack("HOLD"))
+        self.load_map_btn.clicked.connect(self.load_selected_map)
         self.min_sep_spin.valueChanged.connect(self.on_min_separation_changed)
+        self._update_map_info()
 
         conflict_group = QGroupBox("Current conflicts - updated in place")
         conflict_layout = QVBoxLayout(conflict_group)
@@ -263,26 +366,92 @@ class AiAssistPanel(QWidget):
         self.text.setStyleSheet("background: #1a1f1b; color: #d8ffe0; font-family: Consolas, monospace;")
         layout.addWidget(self.text)
 
-    def _stack(self, command):
-        self.command_queue.append(command)
+    @staticmethod
+    def _queued_command(item):
+        return item.get("command", "") if isinstance(item, dict) else str(item)
+
+    def _stack(self, command, monitor_record=None):
+        now_wall = datetime.now().timestamp()
+        item = {
+            "command": command,
+            "queued_wall_time": now_wall,
+            "queued_monotonic": monotonic(),
+            "monitor_record": monitor_record,
+        }
+        head = command.strip().split(" ", 1)[0].upper()
+        if head in {"ALT", "SPD"}:
+            insert_at = 0
+            while insert_at < len(self.command_queue):
+                queued_head = self._queued_command(self.command_queue[insert_at]).strip().split(" ", 1)[0].upper()
+                if queued_head not in {"ALT", "SPD"}:
+                    break
+                insert_at += 1
+            self.command_queue.insert(insert_at, item)
+        else:
+            self.command_queue.append(item)
+        if monitor_record is not None:
+            monitor_record["queued_time"] = now_wall
+            monitor_record["status"] = "queued"
+            self._set_command_status(monitor_record["row"], "queued")
+            self._append_log({
+                "event": "command_queued",
+                "aircraft": monitor_record["acid"],
+                "command": command,
+                "sim_time": self.latest_sim_time,
+                "queue_len": len(self.command_queue),
+            })
         if not self.command_timer.isActive():
             self.command_timer.start()
+        return item
 
     def _drain_command_queue(self):
         if not self.command_queue:
             self.command_timer.stop()
             return
-        command = self.command_queue.pop(0)
+        item = self.command_queue.pop(0)
+        command = self._queued_command(item)
+        monitor_record = item.get("monitor_record") if isinstance(item, dict) else None
         sent = False
         if getattr(bs, "net", None):
             target = bs.net.actnode()
             if target:
-                bs.net.send_event(b"STACKCMD", command, target=target)
-                sent = True
-        if self.console is not None and self._should_echo_command(command) and hasattr(self.console, "echo"):
-            self.console.echo("SENT CMD: " + command)
+                started = monotonic()
+                try:
+                    bs.net.send_event(b"STACKCMD", command, target=target)
+                    sent = True
+                except Exception as exc:
+                    self._append_log({"event": "command_send_failed", "command": command, "error": str(exc)})
+                    if monitor_record is not None:
+                        monitor_record["status"] = "send_failed"
+                        self._set_command_status(monitor_record["row"], "send failed")
+                elapsed = monotonic() - started
+                if elapsed > 0.25:
+                    self._append_log({
+                        "event": "slow_command_send",
+                        "command": command,
+                        "elapsed_sec": round(elapsed, 3),
+                        "queue_len": len(self.command_queue),
+                    })
         if self.console is not None and not sent:
             self.console.stack(command)
+            sent = True
+        if sent and monitor_record is not None:
+            sent_wall = datetime.now().timestamp()
+            queued_wall = item.get("queued_wall_time", sent_wall) if isinstance(item, dict) else sent_wall
+            monitor_record["sent_time"] = sent_wall
+            monitor_record["sent_sim_time"] = self.latest_sim_time
+            monitor_record["status"] = "sent"
+            self._set_command_status(monitor_record["row"], "sent; waiting execution")
+            self._append_log({
+                "event": "command_sent",
+                "aircraft": monitor_record["acid"],
+                "command": command,
+                "sim_time": self.latest_sim_time,
+                "queue_delay_sec": round(sent_wall - queued_wall, 3),
+                "queue_len": len(self.command_queue),
+            })
+        if self.console is not None and sent and self._should_echo_command(command) and hasattr(self.console, "echo"):
+            self.console.echo("[%s] SENT CMD: %s" % (self._now(), command))
 
     def _should_echo_command(self, command):
         head = command.strip().split(" ", 1)[0].upper()
@@ -333,29 +502,61 @@ class AiAssistPanel(QWidget):
 
     def _register_command_monitor(self, row, action):
         if row is None or action.get("kind") not in {"altitude", "speed"}:
-            return
-        self.command_records.append({
+            return None
+        now_wall = datetime.now().timestamp()
+        for previous in self.command_records:
+            if (
+                previous.get("acid") == action["acid"]
+                and previous.get("kind") == action["kind"]
+                and previous.get("status") not in {"reached", "superseded"}
+            ):
+                previous["status"] = "superseded"
+                previous["superseded_time"] = now_wall
+                self._set_command_status(previous["row"], "superseded by newer command")
+                self._append_log({
+                    "event": "command_superseded",
+                    "aircraft": previous["acid"],
+                    "old_command": previous.get("command"),
+                    "new_command": action.get("command"),
+                    "sim_time": self.latest_sim_time,
+                })
+        state = self.latest_acdata.get(action["acid"], {})
+        record = {
             "row": row,
             "acid": action["acid"],
             "kind": action["kind"],
             "target_fl": action.get("target_fl"),
             "target_speed": action.get("target_speed"),
             "command": action.get("command"),
-            "issued_time": datetime.now().timestamp(),
+            "decision_time": now_wall,
+            "decision_sim_time": self.latest_sim_time,
+            "initial_alt_ft": state.get("alt_ft"),
+            "initial_speed_kt": self._speed_kt(state) if state else None,
+            "last_alt_ft": state.get("alt_ft"),
             "reached": False,
-        })
+            "status": "planned",
+        }
+        self.command_records.append(record)
+        return record
 
     def _set_command_status(self, row, status):
         if not hasattr(self, "command_table") or row >= self.command_table.rowCount():
+            return
+        if self._last_command_status_by_row.get(row) == status:
             return
         item = QTableWidgetItem(status)
         item.setTextAlignment(Qt.AlignCenter)
         item.setToolTip(status)
         self.command_table.setItem(row, 5, item)
+        self._last_command_status_by_row[row] = status
 
     def _update_command_execution_statuses(self):
         if not hasattr(self, "command_table"):
             return
+        now_ts = monotonic()
+        if now_ts - self._last_execution_update_ts < self.EXECUTION_UPDATE_MIN_SEC:
+            return
+        self._last_execution_update_ts = now_ts
         if not self.command_records:
             if hasattr(self, "status_execution"):
                 self.status_execution.setText("Execution: 0/0")
@@ -363,28 +564,84 @@ class AiAssistPanel(QWidget):
         reached = 0
         tracked = 0
         for record in self.command_records:
+            if record.get("status") == "superseded":
+                continue
             state = self.latest_acdata.get(record["acid"])
             if state is None:
                 self._set_command_status(record["row"], "waiting ACDATA")
                 continue
             tracked += 1
+            if not record.get("sent_time"):
+                self._set_command_status(record["row"], record.get("status", "queued"))
+                continue
+            just_started = False
+            just_reached = False
             if record["kind"] == "altitude":
                 target_alt_ft = float(record["target_fl"]) * 100.0
                 current_fl = state["alt_ft"] / 100.0
                 diff_ft = abs(state["alt_ft"] - target_alt_ft)
-                if diff_ft <= 150.0:
-                    record["reached"] = True
-                status = "FL%.0f->%d %s" % (
-                    current_fl, record["target_fl"], "reached" if record["reached"] else "pending"
+                initial_alt_ft = record.get("initial_alt_ft")
+                moved_ft = abs(state["alt_ft"] - initial_alt_ft) if initial_alt_ft is not None else 0.0
+                toward_target = (target_alt_ft - state["alt_ft"]) * state.get("vs_fpm", 0.0) >= 0.0
+                if not record.get("started_time") and (
+                    moved_ft >= self.EXECUTION_START_ALT_DELTA_FT
+                    or (abs(state.get("vs_fpm", 0.0)) >= 100.0 and toward_target)
+                ):
+                    record["started_time"] = datetime.now().timestamp()
+                    record["started_sim_time"] = self.latest_sim_time
+                    record["status"] = "executing"
+                    just_started = True
+                previous_alt_ft = record.get("last_alt_ft")
+                crossed_target = (
+                    previous_alt_ft is not None
+                    and (previous_alt_ft - target_alt_ft) * (state["alt_ft"] - target_alt_ft) <= 0.0
+                    and abs(previous_alt_ft - state["alt_ft"]) > 0.0
                 )
+                if diff_ft <= self.ALT_REACHED_TOLERANCE_FT or crossed_target:
+                    record["reached"] = True
+                    just_reached = record.get("status") != "reached"
+                    record["status"] = "reached"
+                record["last_alt_ft"] = state["alt_ft"]
+                phase = "reached" if record["reached"] else ("executing" if record.get("started_time") else "sent")
+                status = "FL%.1f->%d %s" % (current_fl, record["target_fl"], phase)
             else:
                 current_speed = self._speed_kt(state)
                 diff_kt = abs(current_speed - int(record["target_speed"]))
-                if diff_kt <= 5:
+                initial_speed = record.get("initial_speed_kt")
+                moved_kt = abs(current_speed - initial_speed) if initial_speed is not None else 0.0
+                if not record.get("started_time") and moved_kt >= self.EXECUTION_START_SPEED_DELTA_KT:
+                    record["started_time"] = datetime.now().timestamp()
+                    record["started_sim_time"] = self.latest_sim_time
+                    record["status"] = "executing"
+                    just_started = True
+                if diff_kt <= self.SPEED_REACHED_TOLERANCE_KT:
                     record["reached"] = True
-                status = "CAS%d->%d %s" % (
-                    current_speed, record["target_speed"], "reached" if record["reached"] else "pending"
-                )
+                    just_reached = record.get("status") != "reached"
+                    record["status"] = "reached"
+                phase = "reached" if record["reached"] else ("executing" if record.get("started_time") else "sent")
+                status = "CAS%d->%d %s" % (current_speed, record["target_speed"], phase)
+            if just_started:
+                self._append_log({
+                    "event": "command_execution_started",
+                    "aircraft": record["acid"],
+                    "command": record["command"],
+                    "sim_time": self.latest_sim_time,
+                    "send_to_start_sec": round(record["started_time"] - record["sent_time"], 3),
+                })
+            if just_reached:
+                record["reached_time"] = datetime.now().timestamp()
+                record["reached_sim_time"] = self.latest_sim_time
+                if record["kind"] == "altitude" and self.last_targets.get(record["acid"]) == record["target_fl"]:
+                    self.last_targets.pop(record["acid"], None)
+                if record["kind"] == "speed" and self.last_speeds.get(record["acid"]) == record["target_speed"]:
+                    self.last_speeds.pop(record["acid"], None)
+                self._append_log({
+                    "event": "command_reached",
+                    "aircraft": record["acid"],
+                    "command": record["command"],
+                    "sim_time": self.latest_sim_time,
+                    "send_to_reached_sec": round(record["reached_time"] - record["sent_time"], 3),
+                })
             if record["reached"]:
                 reached += 1
             self._set_command_status(record["row"], status)
@@ -414,58 +671,22 @@ class AiAssistPanel(QWidget):
                     loss_count += 1
         return {"loss_count": loss_count, "min_hsep": min_hsep, "min_vsep": min_vsep}
 
-    def _loss_aircraft_ids(self, aircraft):
-        loss_ids = set()
-        required_hsep_nm = self._min_hsep_nm()
-        for i, a in enumerate(aircraft):
-            for b in aircraft[i + 1:]:
-                ax, ay = self._xy_nm(a["lat"], a["lon"])
-                bx, by = self._xy_nm(b["lat"], b["lon"])
-                hsep = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay))
-                vsep = abs(a["alt_ft"] - b["alt_ft"])
-                if hsep < required_hsep_nm and vsep < self.VERIFY_VSEP_FT:
-                    loss_ids.add(a["id"])
-                    loss_ids.add(b["id"])
-        return loss_ids
-
-    def _set_aircraft_display_color(self, acid, color_name):
-        rgb_by_name = {
-            "green": "0,255,0",
-            "yellow": "255,220,0",
-            "red": "255,0,0",
-        }
-        if self.last_aircraft_colors.get(acid) == color_name:
-            return
-        rgb = rgb_by_name[color_name]
-        self._stack("COLOR %s,%s" % (acid, rgb))
-        self.last_aircraft_colors[acid] = color_name
-
-    def _update_aircraft_alert_colors(self, aircraft, detections):
-        live_ids = {state["id"] for state in aircraft}
-        for acid in list(self.last_aircraft_colors.keys()):
-            if str(acid).startswith("DYN") and acid not in live_ids and acid not in self.active_meta:
-                self.last_aircraft_colors.pop(acid, None)
-
-        conflict_ids = set()
-        for _tcpa, _hsep, _vsep, a, b, _pair in detections:
-            conflict_ids.add(a["id"])
-            conflict_ids.add(b["id"])
-        loss_ids = self._loss_aircraft_ids(aircraft)
-
-        for state in aircraft:
-            acid = state["id"]
-            if acid in loss_ids:
-                self._set_aircraft_display_color(acid, "red")
-            elif acid in conflict_ids:
-                self._set_aircraft_display_color(acid, "yellow")
-            else:
-                self._set_aircraft_display_color(acid, "green")
-
     def _aircraft_has_pending_command(self, acid):
         for record in self.command_records:
-            if record.get("acid") == acid and not record.get("reached"):
+            if (
+                record.get("acid") == acid
+                and not record.get("reached")
+                and record.get("status") != "superseded"
+            ):
                 return True
         return False
+
+    def _command_is_active(self, command):
+        return any(
+            record.get("command") == command
+            and record.get("status") not in {"reached", "superseded", "send_failed"}
+            for record in self.command_records
+        )
 
     def _pair_has_pending_command(self, acid_a, acid_b):
         return self._aircraft_has_pending_command(acid_a) or self._aircraft_has_pending_command(acid_b)
@@ -485,10 +706,12 @@ class AiAssistPanel(QWidget):
         rows = []
         live_ids = set(state_by_id.keys())
         related_action_ids = {action["acid"] for action in actions if action.get("command")}
+        now_ts = monotonic()
         for pair in list(self.tracked_conflicts.keys()):
             acid_a, acid_b = pair
             if acid_a not in live_ids or acid_b not in live_ids:
                 self.tracked_conflicts.pop(pair, None)
+                self._tracked_safe_cache.pop(pair, None)
                 continue
             a = state_by_id[acid_a]
             b = state_by_id[acid_b]
@@ -500,7 +723,6 @@ class AiAssistPanel(QWidget):
             current_loss = current_h < self._min_hsep_nm() and current_v < self.VERIFY_VSEP_FT
             pending = self._pair_has_pending_command(acid_a, acid_b)
             has_new_action = acid_a in related_action_ids or acid_b in related_action_ids
-            future_safe = self._current_targets_are_safe(a, b)
 
             if current_loss:
                 row_state = "Loss"
@@ -510,10 +732,17 @@ class AiAssistPanel(QWidget):
                 row_state = "Executing"
             elif pair in detected_pairs:
                 row_state = default_state
-            elif future_safe:
-                self.tracked_conflicts.pop(pair, None)
-                continue
             else:
+                cached = self._tracked_safe_cache.get(pair)
+                if cached and now_ts - cached[0] < self.TRACKED_SAFE_CHECK_INTERVAL_SEC:
+                    future_safe = cached[1]
+                else:
+                    future_safe = self._current_targets_are_safe(a, b)
+                    self._tracked_safe_cache[pair] = (now_ts, future_safe)
+                if future_safe:
+                    self.tracked_conflicts.pop(pair, None)
+                    self._tracked_safe_cache.pop(pair, None)
+                    continue
                 row_state = "Monitoring"
 
             self.tracked_conflicts[pair]["last_state"] = row_state
@@ -530,9 +759,8 @@ class AiAssistPanel(QWidget):
     def _refresh_conflict_table(self, detections, actions=None, state="monitoring"):
         actions = actions or []
         action_by_aircraft = {action["acid"]: action["command"] for action in actions if action.get("command")}
-        self.conflict_table.setRowCount(0)
-        self.active_conflict_count = len(detections)
-        for row, item in enumerate(detections):
+        table_rows = []
+        for item in detections:
             if len(item) >= 7:
                 tcpa, hsep, vsep, a, b, _pair, row_state = item
             else:
@@ -558,6 +786,14 @@ class AiAssistPanel(QWidget):
                 row_state,
                 "; ".join(related) if related else "-",
             ]
+            table_rows.append(values)
+        signature = tuple(tuple(values) for values in table_rows)
+        self.active_conflict_count = len(table_rows)
+        if signature == self._last_conflict_table_signature:
+            return
+        self._last_conflict_table_signature = signature
+        self.conflict_table.setRowCount(0)
+        for row, values in enumerate(table_rows):
             self.conflict_table.insertRow(row)
             for col, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
@@ -569,12 +805,16 @@ class AiAssistPanel(QWidget):
     def _update_status_labels(self):
         if not hasattr(self, "status_aircraft"):
             return
+        now_ts = monotonic()
+        if now_ts - self._last_status_update_ts < self.STATUS_UPDATE_MIN_SEC:
+            return
+        self._last_status_update_ts = now_ts
         live_count = len(self._live_dyn_ids())
         scheduled_count = len(self.active_meta)
         self.status_aircraft.setText("Aircraft: %d/%d queued:%d" % (live_count, self.MAX_AIRCRAFT, scheduled_count))
         self.status_cycles.setText("Cycles: %d" % self.detect_cycles)
         self.status_conflicts.setText("Active conflicts: %d" % self.active_conflict_count)
-        self.status_commands.setText("Commands: %d" % len(self.issued_commands))
+        self.status_commands.setText("Commands: %d" % len(self.command_records))
         summary = self._current_separation_summary()
         if summary["min_hsep"] is None:
             self.status_safety.setText("Loss: 0")
@@ -598,21 +838,58 @@ class AiAssistPanel(QWidget):
     def _predict_gate_nm(self):
         return max(float(self.PREDICT_GATE_NM), self._min_hsep_nm() * 3.0)
 
+    def _hsep_nm(self, a, b):
+        ax, ay = self._xy_nm(a["lat"], a["lon"])
+        bx, by = self._xy_nm(b["lat"], b["lon"])
+        return sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay))
+
     def on_min_separation_changed(self, value):
+        self._tracked_safe_cache.clear()
+        self._last_status_update_ts = 0.0
         self._append_log({"event": "min_separation_changed", "hsep_nm": float(value)})
         self._log_text("Min separation changed to %.1f NM; detector/verifier will use it from next cycle." % float(value))
         self._update_status_labels()
         if self.detect_timer.isActive():
             QTimer.singleShot(100, self.detect_and_resolve)
 
+    def _apply_map_config(self, map_key):
+        config = MAP_CONFIGS[map_key]
+        self.current_map_key = map_key
+        self.SCENARIO_NAME = config["scenario_name"]
+        self.REAL_SECTOR_ID = config["sector_id"]
+        self.WAYPOINTS = config["waypoints"]
+        self.ROUTES = config["routes"]
+        self.SECTOR_BOUNDS = config["bounds"]
+        self.CENTER_LAT, self.CENTER_LON = config["center"]
+        self.ZOOM = config["zoom"]
+
+    def _update_map_info(self):
+        if not hasattr(self, "map_info"):
+            return
+        config = MAP_CONFIGS[self.current_map_key]
+        self.map_info.setText(
+            "%s. %d directed routes, max %d aircraft. CPA conflicts and issued commands are shown below."
+            % (config["description"], len(config["routes"]), self.MAX_AIRCRAFT)
+        )
+
+    def load_selected_map(self):
+        map_key = self.map_combo.currentData()
+        if map_key not in MAP_CONFIGS:
+            return
+        self._apply_map_config(map_key)
+        self._update_map_info()
+        self.reset_sector()
+
     def _write_idle_summary(self):
+        config = MAP_CONFIGS[self.current_map_key]
         self.text.setPlainText(
-            "Dynamic sector ready.\n"
-            "Routes: R1 east-west, R2 north-south, R3 diagonal crossing.\n"
+            "Map ready: %s (%s).\n"
+            "Routes: %d directed routes; route geometry is drawn on the radar display.\n"
             "Solver: discrete constraint search over altitude/speed actions, then LLM-style instruction/explanation wrapper.\n"
             "Safety rule: predicted CPA within %.0f min, HSEP < %.1f NM and VSEP < %.0f ft triggers resolution.\n"
             "Press Reset sector, then Start auto traffic. Logs: %s" % (
-                self.LOOKAHEAD_MIN, self._min_hsep_nm(), self.VERIFY_VSEP_FT, self.log_path
+                config["label"], self.REAL_SECTOR_ID, len(self.ROUTES), self.LOOKAHEAD_MIN,
+                self._min_hsep_nm(), self.VERIFY_VSEP_FT, self.log_path
             )
         )
         self._update_status_labels()
@@ -621,6 +898,14 @@ class AiAssistPanel(QWidget):
         if not hasattr(self, "text"):
             return
         self.text.append("[%s] %s" % (self._now(), line))
+        document = self.text.document()
+        if document.blockCount() > self.LOG_TEXT_MAX_LINES:
+            cursor = self.text.textCursor()
+            cursor.movePosition(QTextCursor.Start)
+            for _ in range(document.blockCount() - self.LOG_TEXT_MAX_LINES):
+                cursor.select(QTextCursor.BlockUnderCursor)
+                cursor.removeSelectedText()
+                cursor.deleteChar()
         bar = self.text.verticalScrollBar()
         bar.setValue(bar.maximum())
 
@@ -646,14 +931,19 @@ class AiAssistPanel(QWidget):
     def base_sector_commands(self):
         # Keep visual initialization light. Extra route polylines and waypoint labels
         # trigger QtGL buffer updates and make each command feel slow.
-        return [
+        south, west, north, east = self.SECTOR_BOUNDS
+        commands = [
             "RESET",
             "HOLD",
             "PAN %.4f,%.4f" % (self.CENTER_LAT, self.CENTER_LON),
             "ZOOM %.2f" % self.ZOOM,
-            "BOX HMI_SECTOR,29.5500,102.7500,31.8500,105.4500",
+            "BOX HMI_SECTOR,%.4f,%.4f,%.4f,%.4f" % (south, west, north, east),
             "COLOR HMI_SECTOR,0,180,80",
         ]
+        visual_scenario = MAP_CONFIGS[self.current_map_key].get("visual_scenario")
+        if visual_scenario:
+            commands.append("PCALL %s" % visual_scenario)
+        return commands
 
     def reset_sector(self):
         self._ensure_stream_connection()
@@ -666,12 +956,18 @@ class AiAssistPanel(QWidget):
         self.assigned_aircraft.clear()
         self.last_targets.clear()
         self.last_speeds.clear()
-        self.last_aircraft_colors.clear()
         self.issued_commands.clear()
         self.command_records.clear()
         self.last_command_by_aircraft.clear()
         self.command_queue.clear()
         self.command_timer.stop()
+        self._last_status_update_ts = 0.0
+        self._last_execution_update_ts = 0.0
+        self._last_conflict_table_signature = None
+        self._last_command_status_by_row.clear()
+        self._tracked_safe_cache.clear()
+        self.latest_sim_time = None
+        self.last_detect_wall_ts = 0.0
         self.reset_pending_until = datetime.now().timestamp() + (self.RESET_SETTLE_MS / 1000.0)
         self.pending_start = False
         self.detect_cycles = 0
@@ -685,7 +981,13 @@ class AiAssistPanel(QWidget):
             self._stack(command)
         self._write_idle_summary()
         self._add_row("sector", "-", "-", "Reset dynamic sector", "RESET", "ready")
-        self._append_log({"event": "sector_reset", "max_aircraft": self.MAX_AIRCRAFT})
+        self._append_log({
+            "event": "sector_reset",
+            "max_aircraft": self.MAX_AIRCRAFT,
+            "sector_id": self.REAL_SECTOR_ID,
+            "map_key": self.current_map_key,
+            "route_count": len(self.ROUTES),
+        })
 
     def start_auto_traffic(self):
         self._ensure_stream_connection()
@@ -706,6 +1008,13 @@ class AiAssistPanel(QWidget):
         QTimer.singleShot(6000, self.detect_and_resolve)
         self._add_row("control", "-", "-", "Auto traffic started", "OP", "running")
         self._append_log({"event": "auto_traffic_started", "spawn_interval_ms": self.SPAWN_INTERVAL_MS})
+
+    def operate_simulation(self):
+        self._stack("OP")
+        if (self.active_meta or self.latest_acdata) and not self.detect_timer.isActive():
+            self.detect_timer.start(self.DETECT_INTERVAL_MS)
+            QTimer.singleShot(100, self.detect_and_resolve)
+            self._append_log({"event": "conflict_monitor_resumed", "source": "operate_button"})
 
     def stop_auto_traffic(self, stack_hold=True):
         self.spawn_timer.stop()
@@ -745,14 +1054,53 @@ class AiAssistPanel(QWidget):
         return len(self.active_meta)
 
     def spawn_initial_wave(self):
+        if self.current_map_key == "three_route_demo":
+            initial = [
+                (self.ROUTES[0], 340),
+                (self.ROUTES[1], 340),
+                (self.ROUTES[2], 330),
+                (self.ROUTES[3], 350),
+            ]
+            for route, fl in initial:
+                self.spawn_aircraft(route, fl=fl, enforce_gate=False)
+            return
+        route_by_id = {route["route"]: route for route in self.ROUTES}
         initial = [
-            (self.ROUTES[0], 340),
-            (self.ROUTES[1], 360),
-            (self.ROUTES[2], 330),
-            (self.ROUTES[3], 350),
+            ("DYN001", "A320", route_by_id["V69_F001_C01"], 340, 300),
+            ("DYN002", "B738", route_by_id["V69_F002_C01"], 340, 300),
+            ("DYN003", "E190", route_by_id["W179_F001_C01"], 320, 290),
+            ("DYN004", "A319", route_by_id["W231_F001_C01"], 360, 300),
         ]
-        for route, fl in initial:
-            self.spawn_aircraft(route, fl=fl)
+        now_ts = datetime.now().timestamp()
+        for acid, actype, route, fl, speed in initial:
+            entry_lat, entry_lon = self.WAYPOINTS[route["entry"]]
+            self.active_meta[acid] = {
+                "id": acid,
+                "type": actype,
+                "route": route["route"],
+                "route_code": route.get("route_code", route["route"]),
+                "hdg": route["hdg"],
+                "entry_lat": entry_lat,
+                "entry_lon": entry_lon,
+                "entry": route["entry"],
+                "exit": route["exit"],
+                "fl": fl,
+                "speed": speed,
+                "spawn_ts": now_ts,
+                "spawn_time": self._now(),
+            }
+            self._add_row(
+                "spawn", acid, "-", "%s FL%d %dkt" % (route["route"], fl, speed),
+                "PCALL ATC_HMI_REAL_CHENGDU_INITIAL", "loading",
+            )
+        self.spawn_index = len(initial)
+        self._stack("PCALL ATC_HMI_REAL_CHENGDU_INITIAL")
+        self._append_log({
+            "event": "real_sector_initial_wave_queued",
+            "scenario_file": "ATC_HMI_REAL_CHENGDU_INITIAL.scn",
+            "aircraft": [item[0] for item in initial],
+        })
+        self._update_status_labels()
 
     def spawn_random_aircraft(self):
         if not self._can_spawn_more():
@@ -790,19 +1138,24 @@ class AiAssistPanel(QWidget):
         acid = "DYN%03d" % self.spawn_index
         actype = self.rng.choice(self.AIRCRAFT_TYPES)
         entry_lat, entry_lon = self.WAYPOINTS[route["entry"]]
-        exit_lat, exit_lon = self.WAYPOINTS[route["exit"]]
         commands = [
             "CRE %s,%s,%.6f,%.6f,%d,FL%d,%d" % (acid, actype, entry_lat, entry_lon, route["hdg"], fl, speed),
-            "COLOR %s,0,255,0" % acid,
-            "ADDWPT %s %.6f %.6f FL%d %d" % (acid, exit_lat, exit_lon, fl, speed),
-            "%s LNAV ON" % acid,
         ]
+        for waypoint_lat, waypoint_lon in route.get("waypoints", [])[1:]:
+            commands.append(
+                "ADDWPT %s %.6f %.6f FL%d %d" % (acid, waypoint_lat, waypoint_lon, fl, speed)
+            )
+        if len(commands) == 1:
+            exit_lat, exit_lon = self.WAYPOINTS[route["exit"]]
+            commands.append("ADDWPT %s %.6f %.6f FL%d %d" % (acid, exit_lat, exit_lon, fl, speed))
+        commands.append("%s LNAV ON" % acid)
         for command in commands:
             self._stack(command)
         self.active_meta[acid] = {
             "id": acid,
             "type": actype,
             "route": route["route"],
+            "route_code": route.get("route_code", route["route"]),
             "hdg": route["hdg"],
             "entry_lat": entry_lat,
             "entry_lon": entry_lon,
@@ -813,7 +1166,6 @@ class AiAssistPanel(QWidget):
             "spawn_ts": datetime.now().timestamp(),
             "spawn_time": self._now(),
         }
-        self.last_aircraft_colors[acid] = "green"
         self._add_row("spawn", acid, "-", "%s FL%d %dkt" % (route["route"], fl, speed), commands[0], "created")
         self._append_log({"event": "aircraft_spawned", "aircraft": self.active_meta[acid], "commands": commands})
         self._update_status_labels()
@@ -897,6 +1249,12 @@ class AiAssistPanel(QWidget):
             self._set_latest_acdata(acdata)
 
     def _set_latest_acdata(self, acdata):
+        sim_time = getattr(acdata, "simt", None)
+        if sim_time is not None:
+            try:
+                self.latest_sim_time = float(sim_time)
+            except (TypeError, ValueError):
+                pass
         ids = list(getattr(acdata, "id", []))
         lat = list(getattr(acdata, "lat", []))
         lon = list(getattr(acdata, "lon", []))
@@ -904,6 +1262,7 @@ class AiAssistPanel(QWidget):
         trk = list(getattr(acdata, "trk", []))
         gs = list(getattr(acdata, "gs", getattr(acdata, "tas", [])))
         cas = list(getattr(acdata, "cas", []))
+        vs = list(getattr(acdata, "vs", []))
         self.latest_acdata = {}
         for idx, acid in enumerate(ids):
             try:
@@ -917,6 +1276,7 @@ class AiAssistPanel(QWidget):
                     "trk": float(trk[idx]),
                     "gs_mps": float(gs[idx]),
                     "cas_kt": cas_kt,
+                    "vs_fpm": float(vs[idx]) * FT_PER_METER * 60.0 if idx < len(vs) else 0.0,
                 }
             except (IndexError, TypeError, ValueError):
                 continue
@@ -978,10 +1338,10 @@ class AiAssistPanel(QWidget):
     def _effective_fl(self, state):
         acid = state["id"]
         target = self.last_targets.get(acid)
-        if target is not None and abs(target * 100.0 - state["alt_ft"]) <= 300.0:
-            self.last_targets.pop(acid, None)
-            target = None
-        return int(target if target is not None else round(state["alt_ft"] / 100.0))
+        if target is not None:
+            return int(target)
+        current_fl = state["alt_ft"] / 100.0
+        return int(min(self.SAFE_LEVELS, key=lambda level: (abs(level - current_fl), level)))
 
     def _effective_speed(self, state):
         return int(self.last_speeds.get(state["id"], self._speed_kt(state)))
@@ -991,13 +1351,12 @@ class AiAssistPanel(QWidget):
         if target is None:
             return 0
         diff_ft = target * 100.0 - state["alt_ft"]
-        if abs(diff_ft) <= 300.0:
+        if abs(diff_ft) <= self.ALT_REACHED_TOLERANCE_FT:
             return 0
         return 1 if diff_ft > 0.0 else -1
 
     def _candidate_actions(self, state, allow_alt_reversal=False):
         acid = state["id"]
-        current_fl = int(round(state["alt_ft"] / 100.0))
         effective_fl = self._effective_fl(state)
         current_speed = self._effective_speed(state)
         pending_alt_direction = self._pending_alt_direction(state)
@@ -1010,12 +1369,10 @@ class AiAssistPanel(QWidget):
             "label": "hold",
         }]
 
-        altitude_levels = []
-        for delta in self.ALT_DELTAS_FL:
-            for sign in (-1, 1):
-                target = effective_fl + sign * delta
-                if min(self.SAFE_LEVELS) <= target <= max(self.SAFE_LEVELS):
-                    altitude_levels.append(target)
+        altitude_levels = [
+            level for level in self.SAFE_LEVELS
+            if abs(level - effective_fl) in self.ALT_DELTAS_FL
+        ]
         for target_fl in sorted(set(altitude_levels), key=lambda fl: (abs(fl - effective_fl), fl)):
             vs = self.VS_FPM if target_fl * 100.0 > state["alt_ft"] else -self.VS_FPM
             target_direction = 1 if target_fl * 100.0 > state["alt_ft"] else -1
@@ -1052,6 +1409,257 @@ class AiAssistPanel(QWidget):
             abs(action["target_fl"] - effective_fl),
             abs(action["target_speed"] - current_speed),
         ))
+
+    def _action_id(self, action):
+        if action["kind"] == "hold":
+            return "%s_hold" % action["acid"]
+        if action["kind"] == "speed":
+            return "%s_spd_%d" % (action["acid"], int(round(action["target_speed"])))
+        if action["kind"] == "altitude":
+            return "%s_alt_%d" % (action["acid"], int(round(action["target_fl"])))
+        return "%s_%s" % (action["acid"], action["kind"])
+
+    def _action_deviation_cost(self, state, action):
+        return int(
+            abs(int(round(action["target_fl"])) - self._effective_fl(state))
+            + abs(int(round(action["target_speed"])) - self._effective_speed(state))
+        )
+
+    def _level_occupancy(self, acid, action, state_by_id):
+        if action["kind"] in {"hold", "speed"}:
+            return "current", 0
+        probe_state = state_by_id[acid]
+        conflicts = 0
+        occupied = 0
+        for other_id, other in state_by_id.items():
+            if other_id == acid:
+                continue
+            other_hold = {
+                "acid": other_id,
+                "kind": "hold",
+                "target_fl": self._effective_fl(other),
+                "target_speed": self._effective_speed(other),
+                "command": None,
+                "label": "current_target",
+            }
+            if abs(action["target_fl"] - other_hold["target_fl"]) < 10:
+                occupied += 1
+            if not self._action_pair_is_safe(probe_state, action, other, other_hold):
+                conflicts += 1
+        if conflicts:
+            return "crossing_risk", conflicts
+        if occupied:
+            return "occupied", occupied
+        return "free", 0
+
+    def _encode_model_actions(self, graph_ids, state_by_id, allow_alt_reversal=False):
+        encoded = {}
+        lookup = {}
+        for acid in sorted(graph_ids):
+            rows = []
+            for action in self._candidate_actions(state_by_id[acid], allow_alt_reversal=allow_alt_reversal):
+                level_status, level_count = self._level_occupancy(acid, action, state_by_id)
+                aid = self._action_id(action)
+                rows.append([
+                    aid,
+                    action["kind"],
+                    int(round(action["target_fl"])),
+                    int(round(action["target_speed"])),
+                    self._action_deviation_cost(state_by_id[acid], action),
+                    level_status,
+                    level_count,
+                ])
+                lookup[aid] = action
+            encoded[acid] = rows
+        return encoded, lookup
+
+    def _edge_geometry(self, a, b):
+        angle = abs(((a["trk"] - b["trk"] + 180.0) % 360.0) - 180.0)
+        if angle >= 150.0:
+            return "head_on"
+        if angle <= 30.0:
+            return "parallel"
+        if angle >= 60.0:
+            return "crossing"
+        return "converging"
+
+    def _risk_bucket(self, tcpa, hsep):
+        if hsep < 1.0 or tcpa < 2.0:
+            return "critical"
+        if hsep < 3.0 or tcpa < 5.0:
+            return "high"
+        return "medium"
+
+    def _build_action_model_input(self, graph_ids, state_by_id, detections, encoded_actions):
+        aircraft_rows = []
+        for acid in sorted(graph_ids):
+            state = state_by_id[acid]
+            route = self.spawned_meta.get(acid, {}).get("route", "unknown")
+            aircraft_rows.append([
+                acid,
+                route,
+                int(round(state["alt_ft"] / 100.0)),
+                int(round(state["trk"])),
+                self._effective_speed(state),
+                self._effective_fl(state),
+                self._effective_speed(state),
+                "none" if not self._pending_alt_direction(state) else ("up" if self._pending_alt_direction(state) > 0 else "down"),
+            ])
+        edge_rows = []
+        for tcpa, hsep, vsep, a, b, _pair in detections:
+            current_hsep = self._hsep_nm(a, b)
+            current_vsep = abs(a["alt_ft"] - b["alt_ft"])
+            angle = abs(((a["trk"] - b["trk"] + 180.0) % 360.0) - 180.0)
+            edge_rows.append([
+                a["id"],
+                b["id"],
+                self._edge_geometry(a, b),
+                round(tcpa, 1),
+                round(hsep, 1),
+                int(round(vsep)),
+                round(current_hsep, 1),
+                int(round(current_vsep)),
+                int(round(angle)),
+                self._risk_bucket(tcpa, hsep),
+            ])
+        return {
+            "schema": "qwen_conflict_choice_input_v1_1",
+            "pref": self.preference_combo.currentText() if hasattr(self, "preference_combo") else "speed_first",
+            "limits": [float(self.LOOKAHEAD_MIN), float(self._min_hsep_nm()), int(self.VERIFY_VSEP_FT)],
+            "aircraft": aircraft_rows,
+            "edges": edge_rows,
+            "actions": encoded_actions,
+        }
+
+    def _parse_action_model_text(self, raw):
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").strip()
+            if raw.lower().startswith("json"):
+                raw = raw[4:].strip()
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end >= start:
+            raw = raw[start:end + 1]
+        return json.loads(raw)
+
+    def _call_action_model(self, model_input):
+        url = os.environ.get("ATC_ACTION_API_URL")
+        if not url:
+            return {"ok": False, "skipped": True, "error": "ATC_ACTION_API_URL is not set"}
+        timeout = float(os.environ.get("ATC_ACTION_TIMEOUT_SEC", "3.0"))
+        instruction = (
+            "You are an ATC conflict-resolution decision selector. Given a compact conflict graph and available "
+            "candidate actions, select action IDs that resolve predicted conflicts while respecting safety limits "
+            "and controller preference. Return JSON only with fields: schema, status, actions, reason_codes. "
+            "Do not invent action IDs. Do not output BlueSky commands."
+        )
+        if url.endswith("/predict") or os.environ.get("ATC_ACTION_API_MODE", "").lower() == "predict":
+            body = {
+                "instruction": instruction,
+                "input": json.dumps(model_input, ensure_ascii=False, separators=(",", ":")),
+                "max_new_tokens": int(os.environ.get("ATC_ACTION_MAX_TOKENS", "160")),
+                "return_raw": True,
+            }
+        else:
+            body = {
+                "model": os.environ.get("ATC_ACTION_MODEL", os.environ.get("ATC_LLM_MODEL", "qwen3-4b")),
+                "messages": [
+                    {"role": "system", "content": instruction},
+                    {"role": "user", "content": instruction + "\n\nInput:\n" + json.dumps(model_input, ensure_ascii=False, separators=(",", ":"))},
+                ],
+                "temperature": 0,
+                "max_tokens": int(os.environ.get("ATC_ACTION_MAX_TOKENS", "160")),
+            }
+        headers = {"Content-Type": "application/json"}
+        api_key = os.environ.get("ATC_ACTION_API_KEY", os.environ.get("ATC_LLM_API_KEY", ""))
+        if api_key:
+            headers["Authorization"] = "Bearer " + api_key
+        req = request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+        started = monotonic()
+        try:
+            with request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+        except (error.URLError, TimeoutError, OSError) as exc:
+            return {"ok": False, "error": str(exc), "latency_sec": round(monotonic() - started, 3)}
+        try:
+            parsed = json.loads(raw)
+            if "output" in parsed:
+                output = parsed["output"]
+            else:
+                content = parsed["choices"][0]["message"]["content"]
+                output = self._parse_action_model_text(content)
+            return {"ok": True, "output": output, "raw": raw[:1200], "latency_sec": round(monotonic() - started, 3)}
+        except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            return {"ok": False, "error": "parse_error: %s" % exc, "raw": raw[:1200], "latency_sec": round(monotonic() - started, 3)}
+
+    def _verify_model_solution(self, graph, state_by_id, action_lookup, selected_ids):
+        selected = {}
+        invalid = []
+        for aid in selected_ids:
+            action = action_lookup.get(aid)
+            if action is None:
+                invalid.append(aid)
+                continue
+            selected[action["acid"]] = action
+        for acid in graph:
+            if acid not in selected:
+                hold_id = "%s_hold" % acid
+                hold = action_lookup.get(hold_id)
+                if hold is None:
+                    invalid.append(hold_id)
+                else:
+                    selected[acid] = hold
+        if invalid:
+            return False, [], {"invalid_action_ids": invalid, "missing_aircraft": []}
+        failed_pairs = []
+        for acid, neighbors in graph.items():
+            for neighbor in neighbors:
+                if acid >= neighbor:
+                    continue
+                if not self._action_pair_is_safe(state_by_id[acid], selected[acid], state_by_id[neighbor], selected[neighbor]):
+                    failed_pairs.append([acid, neighbor])
+        if failed_pairs:
+            return False, [], {"invalid_action_ids": [], "failed_pairs": failed_pairs}
+        commands = []
+        for acid, action in sorted(selected.items()):
+            if action["kind"] == "hold" or not action["command"] or self._command_is_active(action["command"]):
+                continue
+            commands.append(action)
+        return True, commands, {"invalid_action_ids": [], "failed_pairs": []}
+
+    def _try_model_resolution_plan(self, graph, state_by_id, detections):
+        encoded_actions, action_lookup = self._encode_model_actions(graph, state_by_id, allow_alt_reversal=False)
+        model_input = self._build_action_model_input(graph, state_by_id, detections, encoded_actions)
+        api_result = self._call_action_model(model_input)
+        if not api_result.get("ok"):
+            return None, {
+                "method": "llm_action_selector",
+                "success": False,
+                "fallback_reason": api_result.get("error", "model_call_failed"),
+                "model_api": api_result,
+                "model_input": model_input,
+            }
+        output = api_result.get("output") or {}
+        selected_ids = output.get("actions") or []
+        safe, commands, verification = self._verify_model_solution(graph, state_by_id, action_lookup, selected_ids)
+        solver = {
+            "method": "llm_action_selector_verified" if safe else "llm_action_selector_rejected",
+            "preference": self.preference_combo.currentText() if hasattr(self, "preference_combo") else "speed_first",
+            "num_conflict_aircraft": len(graph),
+            "num_conflict_pairs": len(detections),
+            "selected_action_ids": selected_ids,
+            "model_status": output.get("status"),
+            "model_reason_codes": output.get("reason_codes"),
+            "model_latency_sec": api_result.get("latency_sec"),
+            "verification": verification,
+            "model_input": model_input,
+            "success": safe,
+        }
+        if safe:
+            solver["selected_actions"] = {action["acid"]: action["label"] for action in commands}
+            return commands, solver
+        return None, solver
 
     def _speed_distance_nm(self, start_speed_kt, target_speed_kt, t_sec):
         delta = target_speed_kt - start_speed_kt
@@ -1115,6 +1723,11 @@ class AiAssistPanel(QWidget):
             graph.setdefault(b["id"], set()).add(a["id"])
             urgency[a["id"]] = min(urgency.get(a["id"], 999.0), tcpa)
             urgency[b["id"]] = min(urgency.get(b["id"], 999.0), tcpa)
+
+        if os.environ.get("ATC_ACTION_API_URL"):
+            model_actions, model_solver = self._try_model_resolution_plan(graph, state_by_id, detections)
+            if model_actions is not None:
+                return model_actions, model_solver
 
         actions_by_acid = {acid: self._candidate_actions(state_by_id[acid], allow_alt_reversal=False) for acid in graph}
         order = sorted(graph, key=lambda acid: (-len(graph[acid]), urgency.get(acid, 999.0), acid))
@@ -1196,6 +1809,8 @@ class AiAssistPanel(QWidget):
             "selected_actions": {},
             "success": solution is not None,
         }
+        if os.environ.get("ATC_ACTION_API_URL"):
+            solver["llm_action_selector_fallback"] = True
         if solution is None:
             return [], solver
 
@@ -1204,7 +1819,7 @@ class AiAssistPanel(QWidget):
             solver["selected_actions"][acid] = action["label"]
             if action["kind"] == "hold" or not action["command"]:
                 continue
-            if action["command"] in self.issued_commands:
+            if self._command_is_active(action["command"]):
                 continue
             commands.append(action)
         return commands, solver
@@ -1253,7 +1868,7 @@ class AiAssistPanel(QWidget):
             current_speed = self._effective_speed(state)
             vs = self.VS_FPM if target_fl * 100.0 > state["alt_ft"] else -self.VS_FPM
             command = "ALT %s,FL%d,%d" % (acid, target_fl, vs)
-            if command in self.issued_commands:
+            if self._command_is_active(command):
                 continue
             actions.append({
                 "acid": acid,
@@ -1373,8 +1988,17 @@ class AiAssistPanel(QWidget):
         if self.detect_busy:
             return
         self.detect_busy = True
+        self.last_detect_wall_ts = monotonic()
         try:
             self._detect_and_resolve_impl()
+        except Exception as exc:
+            self._append_log({
+                "event": "detect_cycle_error",
+                "cycle": self.detect_cycles,
+                "error": repr(exc),
+                "sim_time": self.latest_sim_time,
+            })
+            self._log_text("Conflict monitor error in cycle %d: %s" % (self.detect_cycles, exc))
         finally:
             self.detect_busy = False
 
@@ -1388,8 +2012,7 @@ class AiAssistPanel(QWidget):
         ]
         if len(aircraft) < 2:
             self.tracked_conflicts.clear()
-            display_rows = self._sync_tracked_conflicts(aircraft, [], [])
-            self._update_aircraft_alert_colors(aircraft, display_rows)
+            self._sync_tracked_conflicts(aircraft, [], [])
             self._refresh_conflict_table([])
             return
         state_by_id = {state["id"]: state for state in aircraft}
@@ -1403,7 +2026,6 @@ class AiAssistPanel(QWidget):
         detections.sort(key=lambda x: (x[0], x[1]))
         if not detections:
             display_rows = self._sync_tracked_conflicts(aircraft, [], [])
-            self._update_aircraft_alert_colors(aircraft, display_rows)
             self._refresh_conflict_table(display_rows)
             if self.detect_cycles % 10 == 0:
                 self._append_log({"event": "detect_cycle_clear", "cycle": self.detect_cycles, "aircraft": len(aircraft)})
@@ -1417,7 +2039,6 @@ class AiAssistPanel(QWidget):
         if not actions:
             if solver.get("success"):
                 display_rows = self._sync_tracked_conflicts(aircraft, detections, [], default_state="Issued")
-                self._update_aircraft_alert_colors(aircraft, display_rows)
                 self._refresh_conflict_table(display_rows, [], state="Issued")
                 self._append_log({
                     "event": "conflict_monitoring_no_new_command",
@@ -1441,7 +2062,6 @@ class AiAssistPanel(QWidget):
                 })
             else:
                 display_rows = self._sync_tracked_conflicts(aircraft, detections, [], default_state="Blocked")
-                self._update_aircraft_alert_colors(aircraft, display_rows)
                 self._refresh_conflict_table(display_rows, [], state="Blocked")
                 self._add_command_row(aircraft_text, "alert", "-", "No verified action; hold for controller review", "blocked")
                 self._append_log({
@@ -1459,8 +2079,6 @@ class AiAssistPanel(QWidget):
         }
         for action in actions:
             command = action["command"]
-            self._stack(command)
-            self.issued_commands.add(command)
             self.assigned_aircraft.add(action["acid"])
             self.last_command_by_aircraft[action["acid"]] = command
             if action["kind"] == "altitude":
@@ -1472,15 +2090,16 @@ class AiAssistPanel(QWidget):
                 action["kind"],
                 command,
                 instruction_by_aircraft.get(action["acid"], "Verified conflict-resolution command"),
-                "issued",
+                "planned",
             )
-            self._register_command_monitor(row, action)
+            monitor_record = self._register_command_monitor(row, action)
+            self._stack(command, monitor_record=monitor_record)
+            self.issued_commands.add(command)
 
         decision_text = "%s via %s" % (solver["preference"], solver["method"])
         command_text = "; ".join(action["command"] for action in actions)
         instruction_text = " ".join(llm_output["standard_instructions"])
         display_rows = self._sync_tracked_conflicts(aircraft, detections, actions, default_state="Issued")
-        self._update_aircraft_alert_colors(aircraft, display_rows)
         self._refresh_conflict_table(display_rows, actions, state="Issued")
         self._log_text(
             "Decision %s | Aircraft %s | CPA %s | CMD %s | Instruction %s"

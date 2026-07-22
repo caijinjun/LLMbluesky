@@ -1,0 +1,3064 @@
+{
+  "schema": "real_sector_sampling_ready_route_set_v1",
+  "source_route_set_path": "datasets\\real_sector_maps\\chengdu_chongqing_29p00_31p50_103p00_107p00\\chengdu_chongqing_29p00_31p50_103p00_107p00_v10.route_set.json",
+  "version": "v10",
+  "sector_id": "chengdu_chongqing_29p00_31p50_103p00_107p00",
+  "route_set_id": "chengdu_chongqing_29p00_31p50_103p00_107p00",
+  "directed_routes": true,
+  "route_ids": [
+    "B330_F001_C01",
+    "V158_F001_C01",
+    "V69_F001_C01",
+    "V69_F002_C01",
+    "W179_F001_C01",
+    "W180_F001_C01",
+    "W231_F001_C01",
+    "W237_F001_C01",
+    "W3_F001_C01",
+    "W80_F001_C01"
+  ],
+  "routes": {
+    "B330_F001_C01": {
+      "route_id": "B330_F001_C01",
+      "source_route_code": "B330",
+      "num_waypoints": 8,
+      "entry": "MEXAD_93D93E",
+      "exit": "LEVTO_E03408",
+      "entry_lat": 31.78,
+      "entry_lon": 104.6383333333,
+      "exit_lat": 28.9494444444,
+      "exit_lon": 105.0516666667,
+      "initial_bearing_deg": 178.1,
+      "total_distance_nm": 172.59,
+      "route_min_required_fl": 94,
+      "segments": [
+        {
+          "index": 0,
+          "from": "MEXAD_93D93E",
+          "to": "UBKER_750E0D",
+          "distance_nm": 43.971,
+          "bearing_deg": 178.1
+        },
+        {
+          "index": 1,
+          "from": "UBKER_750E0D",
+          "to": "VIMAM_336D81",
+          "distance_nm": 11.042,
+          "bearing_deg": 174.5
+        },
+        {
+          "index": 2,
+          "from": "VIMAM_336D81",
+          "to": "BUVUR_62024A",
+          "distance_nm": 18.147,
+          "bearing_deg": 174.5
+        },
+        {
+          "index": 3,
+          "from": "BUVUR_62024A",
+          "to": "DAGDI_D7FFEA",
+          "distance_nm": 33.944,
+          "bearing_deg": 174.5
+        },
+        {
+          "index": 4,
+          "from": "DAGDI_D7FFEA",
+          "to": "IDBOR_57A0D1",
+          "distance_nm": 40.243,
+          "bearing_deg": 174.5
+        },
+        {
+          "index": 5,
+          "from": "IDBOR_57A0D1",
+          "to": "IGUNI_B55D63",
+          "distance_nm": 13.686,
+          "bearing_deg": 156.2
+        },
+        {
+          "index": 6,
+          "from": "IGUNI_B55D63",
+          "to": "LEVTO_E03408",
+          "distance_nm": 11.558,
+          "bearing_deg": 156.2
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "MEXAD_93D93E",
+          "lat": 31.78,
+          "lon": 104.6383333333,
+          "code": "MEXAD",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "UBKER_750E0D",
+          "lat": 31.0480555555,
+          "lon": 104.6672222223,
+          "code": "UBKER",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "VIMAM_336D81",
+          "lat": 30.865,
+          "lon": 104.6877777777,
+          "code": "VIMAM",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "BUVUR_62024A",
+          "lat": 30.5641666667,
+          "lon": 104.7216666667,
+          "code": "BUVUR",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "DAGDI_D7FFEA",
+          "lat": 30.0013888889,
+          "lon": 104.7841666666,
+          "code": "DAGDI",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "IDBOR_57A0D1",
+          "lat": 29.3341666666,
+          "lon": 104.8575,
+          "code": "IDBOR",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "IGUNI_B55D63",
+          "lat": 29.1255555556,
+          "lon": 104.9627777778,
+          "code": "IGUNI",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "LEVTO_E03408",
+          "lat": 28.9494444444,
+          "lon": 105.0516666667,
+          "code": "LEVTO",
+          "type": "DESIGNATED_POINT"
+        }
+      ]
+    },
+    "V158_F001_C01": {
+      "route_id": "V158_F001_C01",
+      "source_route_code": "V158",
+      "num_waypoints": 4,
+      "entry": "AKNIP_F6A9D2",
+      "exit": "URGEG_B33106",
+      "entry_lat": 30.8647222222,
+      "entry_lon": 107.3872222222,
+      "exit_lat": 30.5988888889,
+      "exit_lon": 106.2841666666,
+      "initial_bearing_deg": 245.7,
+      "total_distance_nm": 60.173,
+      "route_min_required_fl": 60,
+      "segments": [
+        {
+          "index": 0,
+          "from": "AKNIP_F6A9D2",
+          "to": "TAMUS_2C94C6",
+          "distance_nm": 23.774,
+          "bearing_deg": 245.7
+        },
+        {
+          "index": 1,
+          "from": "TAMUS_2C94C6",
+          "to": "VINEX_C4B06E",
+          "distance_nm": 15.076,
+          "bearing_deg": 248.2
+        },
+        {
+          "index": 2,
+          "from": "VINEX_C4B06E",
+          "to": "URGEG_B33106",
+          "distance_nm": 21.323,
+          "bearing_deg": 268.7
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "AKNIP_F6A9D2",
+          "lat": 30.8647222222,
+          "lon": 107.3872222222,
+          "code": "AKNIP",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "TAMUS_2C94C6",
+          "lat": 30.7011111111,
+          "lon": 106.9675,
+          "code": "TAMUS",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "VINEX_C4B06E",
+          "lat": 30.6075,
+          "lon": 106.6966666666,
+          "code": "VINEX",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "URGEG_B33106",
+          "lat": 30.5988888889,
+          "lon": 106.2841666666,
+          "code": "URGEG",
+          "type": "DESIGNATED_POINT"
+        }
+      ]
+    },
+    "V69_F001_C01": {
+      "route_id": "V69_F001_C01",
+      "source_route_code": "V69",
+      "num_waypoints": 5,
+      "entry": "ABVIR_8FE987",
+      "exit": "WFX_D2AF56",
+      "entry_lat": 30.2380555555,
+      "entry_lon": 102.9152777778,
+      "exit_lat": 30.6066666667,
+      "exit_lon": 104.4916666666,
+      "initial_bearing_deg": 84.3,
+      "total_distance_nm": 85.765,
+      "route_min_required_fl": 128,
+      "segments": [
+        {
+          "index": 0,
+          "from": "ABVIR_8FE987",
+          "to": "MUDEL_207139",
+          "distance_nm": 20.134,
+          "bearing_deg": 84.3
+        },
+        {
+          "index": 1,
+          "from": "MUDEL_207139",
+          "to": "HLC_BA6260",
+          "distance_nm": 20.478,
+          "bearing_deg": 84.7
+        },
+        {
+          "index": 2,
+          "from": "HLC_BA6260",
+          "to": "BHS_74603D",
+          "distance_nm": 29.031,
+          "bearing_deg": 64.1
+        },
+        {
+          "index": 3,
+          "from": "BHS_74603D",
+          "to": "WFX_D2AF56",
+          "distance_nm": 16.122,
+          "bearing_deg": 69.2
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "ABVIR_8FE987",
+          "lat": 30.2380555555,
+          "lon": 102.9152777778,
+          "code": "ABVIR",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "MUDEL_207139",
+          "lat": 30.2705555556,
+          "lon": 103.3016666667,
+          "code": "MUDEL",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "HLC_BA6260",
+          "lat": 30.3016666667,
+          "lon": 103.695,
+          "code": "HLC",
+          "type": "NAVAID"
+        },
+        {
+          "name": "BHS_74603D",
+          "lat": 30.5116666667,
+          "lon": 104.2,
+          "code": "BHS",
+          "type": "NAVAID"
+        },
+        {
+          "name": "WFX_D2AF56",
+          "lat": 30.6066666667,
+          "lon": 104.4916666666,
+          "code": "WFX",
+          "type": "NAVAID"
+        }
+      ]
+    },
+    "V69_F002_C01": {
+      "route_id": "V69_F002_C01",
+      "source_route_code": "V69",
+      "num_waypoints": 5,
+      "entry": "WFX_D2AF56",
+      "exit": "ABVIR_8FE987",
+      "entry_lat": 30.6066666667,
+      "entry_lon": 104.4916666666,
+      "exit_lat": 30.2380555555,
+      "exit_lon": 102.9152777778,
+      "initial_bearing_deg": 249.4,
+      "total_distance_nm": 85.765,
+      "route_min_required_fl": 128,
+      "segments": [
+        {
+          "index": 0,
+          "from": "WFX_D2AF56",
+          "to": "BHS_74603D",
+          "distance_nm": 16.122,
+          "bearing_deg": 249.4
+        },
+        {
+          "index": 1,
+          "from": "BHS_74603D",
+          "to": "HLC_BA6260",
+          "distance_nm": 29.031,
+          "bearing_deg": 244.4
+        },
+        {
+          "index": 2,
+          "from": "HLC_BA6260",
+          "to": "MUDEL_207139",
+          "distance_nm": 20.478,
+          "bearing_deg": 264.9
+        },
+        {
+          "index": 3,
+          "from": "MUDEL_207139",
+          "to": "ABVIR_8FE987",
+          "distance_nm": 20.134,
+          "bearing_deg": 264.5
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "WFX_D2AF56",
+          "lat": 30.6066666667,
+          "lon": 104.4916666666,
+          "code": "WFX",
+          "type": "NAVAID"
+        },
+        {
+          "name": "BHS_74603D",
+          "lat": 30.5116666667,
+          "lon": 104.2,
+          "code": "BHS",
+          "type": "NAVAID"
+        },
+        {
+          "name": "HLC_BA6260",
+          "lat": 30.3016666667,
+          "lon": 103.695,
+          "code": "HLC",
+          "type": "NAVAID"
+        },
+        {
+          "name": "MUDEL_207139",
+          "lat": 30.2705555556,
+          "lon": 103.3016666667,
+          "code": "MUDEL",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "ABVIR_8FE987",
+          "lat": 30.2380555555,
+          "lon": 102.9152777778,
+          "code": "ABVIR",
+          "type": "DESIGNATED_POINT"
+        }
+      ]
+    },
+    "W179_F001_C01": {
+      "route_id": "W179_F001_C01",
+      "source_route_code": "W179",
+      "num_waypoints": 7,
+      "entry": "WLY_869B65",
+      "exit": "BOKIR_973DF5",
+      "entry_lat": 28.85,
+      "entry_lon": 104.5633333333,
+      "exit_lat": 31.7677777778,
+      "exit_lon": 104.3497222222,
+      "initial_bearing_deg": 328.1,
+      "total_distance_nm": 181.491,
+      "route_min_required_fl": 122,
+      "segments": [
+        {
+          "index": 0,
+          "from": "WLY_869B65",
+          "to": "IGNAK_F198DF",
+          "distance_nm": 29.866,
+          "bearing_deg": 328.1
+        },
+        {
+          "index": 1,
+          "from": "IGNAK_F198DF",
+          "to": "IPLOL_7E9E36",
+          "distance_nm": 52.654,
+          "bearing_deg": 8.4
+        },
+        {
+          "index": 2,
+          "from": "IPLOL_7E9E36",
+          "to": "WFX_D2AF56",
+          "distance_nm": 28.369,
+          "bearing_deg": 8.6
+        },
+        {
+          "index": 3,
+          "from": "WFX_D2AF56",
+          "to": "JTG_066E69",
+          "distance_nm": 16.753,
+          "bearing_deg": 341.8
+        },
+        {
+          "index": 4,
+          "from": "JTG_066E69",
+          "to": "CDX_0D7E89",
+          "distance_nm": 22.721,
+          "bearing_deg": 358.7
+        },
+        {
+          "index": 5,
+          "from": "CDX_0D7E89",
+          "to": "BOKIR_973DF5",
+          "distance_nm": 31.126,
+          "bearing_deg": 357.2
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "WLY_869B65",
+          "lat": 28.85,
+          "lon": 104.5633333333,
+          "code": "WLY",
+          "type": "NAVAID"
+        },
+        {
+          "name": "IGNAK_F198DF",
+          "lat": 29.2719444445,
+          "lon": 104.2619444444,
+          "code": "IGNAK",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "IPLOL_7E9E36",
+          "lat": 30.1394444444,
+          "lon": 104.41,
+          "code": "IPLOL",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "WFX_D2AF56",
+          "lat": 30.6066666667,
+          "lon": 104.4916666666,
+          "code": "WFX",
+          "type": "NAVAID"
+        },
+        {
+          "name": "JTG_066E69",
+          "lat": 30.8716666667,
+          "lon": 104.39,
+          "code": "JTG",
+          "type": "NAVAID"
+        },
+        {
+          "name": "CDX_0D7E89",
+          "lat": 31.25,
+          "lon": 104.38,
+          "code": "CDX",
+          "type": "NAVAID"
+        },
+        {
+          "name": "BOKIR_973DF5",
+          "lat": 31.7677777778,
+          "lon": 104.3497222222,
+          "code": "BOKIR",
+          "type": "DESIGNATED_POINT"
+        }
+      ]
+    },
+    "W180_F001_C01": {
+      "route_id": "W180_F001_C01",
+      "source_route_code": "W180",
+      "num_waypoints": 4,
+      "entry": "TAMUS_2C94C6",
+      "exit": "VILUS_FE73BE",
+      "entry_lat": 30.7011111111,
+      "entry_lon": 106.9675,
+      "exit_lat": 28.6619444444,
+      "exit_lon": 106.9513888889,
+      "initial_bearing_deg": 179.4,
+      "total_distance_nm": 122.439,
+      "route_min_required_fl": 94,
+      "segments": [
+        {
+          "index": 0,
+          "from": "TAMUS_2C94C6",
+          "to": "IVSOL_4ABDCF",
+          "distance_nm": 20.949,
+          "bearing_deg": 179.4
+        },
+        {
+          "index": 1,
+          "from": "IVSOL_4ABDCF",
+          "to": "OGUBO_DFA73D",
+          "distance_nm": 51.621,
+          "bearing_deg": 180.6
+        },
+        {
+          "index": 2,
+          "from": "OGUBO_DFA73D",
+          "to": "VILUS_FE73BE",
+          "distance_nm": 49.87,
+          "bearing_deg": 180.6
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "TAMUS_2C94C6",
+          "lat": 30.7011111111,
+          "lon": 106.9675,
+          "code": "TAMUS",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "IVSOL_4ABDCF",
+          "lat": 30.3522222222,
+          "lon": 106.9716666667,
+          "code": "IVSOL",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "OGUBO_DFA73D",
+          "lat": 29.4925,
+          "lon": 106.9613888889,
+          "code": "OGUBO",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "VILUS_FE73BE",
+          "lat": 28.6619444444,
+          "lon": 106.9513888889,
+          "code": "VILUS",
+          "type": "DESIGNATED_POINT"
+        }
+      ]
+    },
+    "W231_F001_C01": {
+      "route_id": "W231_F001_C01",
+      "source_route_code": "W231",
+      "num_waypoints": 4,
+      "entry": "URGEG_B33106",
+      "exit": "WFX_D2AF56",
+      "entry_lat": 30.5988888889,
+      "entry_lon": 106.2841666666,
+      "exit_lat": 30.6066666667,
+      "exit_lon": 104.4916666666,
+      "initial_bearing_deg": 302.7,
+      "total_distance_nm": 95.62,
+      "route_min_required_fl": 55,
+      "segments": [
+        {
+          "index": 0,
+          "from": "URGEG_B33106",
+          "to": "BONPI_7E3533",
+          "distance_nm": 15.906,
+          "bearing_deg": 302.7
+        },
+        {
+          "index": 1,
+          "from": "BONPI_7E3533",
+          "to": "EKOKA_52160A",
+          "distance_nm": 34.513,
+          "bearing_deg": 260.7
+        },
+        {
+          "index": 2,
+          "from": "EKOKA_52160A",
+          "to": "WFX_D2AF56",
+          "distance_nm": 45.201,
+          "bearing_deg": 267.1
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "URGEG_B33106",
+          "lat": 30.5988888889,
+          "lon": 106.2841666666,
+          "code": "URGEG",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "BONPI_7E3533",
+          "lat": 30.7416666666,
+          "lon": 106.0247222223,
+          "code": "BONPI",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "EKOKA_52160A",
+          "lat": 30.6475,
+          "lon": 105.3652777778,
+          "code": "EKOKA",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "WFX_D2AF56",
+          "lat": 30.6066666667,
+          "lon": 104.4916666666,
+          "code": "WFX",
+          "type": "NAVAID"
+        }
+      ]
+    },
+    "W237_F001_C01": {
+      "route_id": "W237_F001_C01",
+      "source_route_code": "W237",
+      "num_waypoints": 4,
+      "entry": "CTU_9E03FB",
+      "exit": "IDBOR_57A0D1",
+      "entry_lat": 30.5733333334,
+      "entry_lon": 103.9433333333,
+      "exit_lat": 29.3341666666,
+      "exit_lon": 104.8575,
+      "initial_bearing_deg": 105.5,
+      "total_distance_nm": 92.32,
+      "route_min_required_fl": 55,
+      "segments": [
+        {
+          "index": 0,
+          "from": "CTU_9E03FB",
+          "to": "BHS_74603D",
+          "distance_nm": 13.779,
+          "bearing_deg": 105.5
+        },
+        {
+          "index": 1,
+          "from": "BHS_74603D",
+          "to": "IPLOL_7E9E36",
+          "distance_nm": 24.858,
+          "bearing_deg": 154.0
+        },
+        {
+          "index": 2,
+          "from": "IPLOL_7E9E36",
+          "to": "IDBOR_57A0D1",
+          "distance_nm": 53.683,
+          "bearing_deg": 154.1
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "CTU_9E03FB",
+          "lat": 30.5733333334,
+          "lon": 103.9433333333,
+          "code": "CTU",
+          "type": "NAVAID"
+        },
+        {
+          "name": "BHS_74603D",
+          "lat": 30.5116666667,
+          "lon": 104.2,
+          "code": "BHS",
+          "type": "NAVAID"
+        },
+        {
+          "name": "IPLOL_7E9E36",
+          "lat": 30.1394444444,
+          "lon": 104.41,
+          "code": "IPLOL",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "IDBOR_57A0D1",
+          "lat": 29.3341666666,
+          "lon": 104.8575,
+          "code": "IDBOR",
+          "type": "DESIGNATED_POINT"
+        }
+      ]
+    },
+    "W3_F001_C01": {
+      "route_id": "W3_F001_C01",
+      "source_route_code": "W3",
+      "num_waypoints": 5,
+      "entry": "ASIPO_2F4445",
+      "exit": "DS_81EF27",
+      "entry_lat": 28.32,
+      "entry_lon": 106.7508333333,
+      "exit_lat": 30.2,
+      "exit_lon": 106.8483333333,
+      "initial_bearing_deg": 0.0,
+      "total_distance_nm": 113.776,
+      "route_min_required_fl": 84,
+      "segments": [
+        {
+          "index": 0,
+          "from": "ASIPO_2F4445",
+          "to": "WESTI_6E93D8",
+          "distance_nm": 67.012,
+          "bearing_deg": 0.0
+        },
+        {
+          "index": 1,
+          "from": "WESTI_6E93D8",
+          "to": "OVSUS_576399",
+          "distance_nm": 32.455,
+          "bearing_deg": 0.1
+        },
+        {
+          "index": 2,
+          "from": "OVSUS_576399",
+          "to": "UGOPO_4E032B",
+          "distance_nm": 8.276,
+          "bearing_deg": 20.1
+        },
+        {
+          "index": 3,
+          "from": "UGOPO_4E032B",
+          "to": "DS_81EF27",
+          "distance_nm": 6.033,
+          "bearing_deg": 20.9
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "ASIPO_2F4445",
+          "lat": 28.32,
+          "lon": 106.7508333333,
+          "code": "ASIPO",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "WESTI_6E93D8",
+          "lat": 29.4361111111,
+          "lon": 106.7516666667,
+          "code": "WESTI",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "OVSUS_576399",
+          "lat": 29.9766666667,
+          "lon": 106.7522222222,
+          "code": "OVSUS",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "UGOPO_4E032B",
+          "lat": 30.1061111111,
+          "lon": 106.8069444444,
+          "code": "UGOPO",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "DS_81EF27",
+          "lat": 30.2,
+          "lon": 106.8483333333,
+          "code": "DS",
+          "type": "NAVAID"
+        }
+      ]
+    },
+    "W80_F001_C01": {
+      "route_id": "W80_F001_C01",
+      "source_route_code": "W80",
+      "num_waypoints": 8,
+      "entry": "OLKOB_2ED871",
+      "exit": "WFX_D2AF56",
+      "entry_lat": 29.7377777777,
+      "entry_lon": 107.1927777777,
+      "exit_lat": 30.6066666667,
+      "exit_lon": 104.4916666666,
+      "initial_bearing_deg": 317.9,
+      "total_distance_nm": 163.575,
+      "route_min_required_fl": 76,
+      "segments": [
+        {
+          "index": 0,
+          "from": "OLKOB_2ED871",
+          "to": "UGOPO_4E032B",
+          "distance_nm": 29.869,
+          "bearing_deg": 317.9
+        },
+        {
+          "index": 1,
+          "from": "UGOPO_4E032B",
+          "to": "URGEG_B33106",
+          "distance_nm": 40.112,
+          "bearing_deg": 317.7
+        },
+        {
+          "index": 2,
+          "from": "URGEG_B33106",
+          "to": "ESMOL_F34459",
+          "distance_nm": 28.955,
+          "bearing_deg": 263.3
+        },
+        {
+          "index": 3,
+          "from": "ESMOL_F34459",
+          "to": "BEVNU_16A132",
+          "distance_nm": 8.164,
+          "bearing_deg": 263.0
+        },
+        {
+          "index": 4,
+          "from": "BEVNU_16A132",
+          "to": "AKOPI_54FECB",
+          "distance_nm": 13.466,
+          "bearing_deg": 263.0
+        },
+        {
+          "index": 5,
+          "from": "AKOPI_54FECB",
+          "to": "BUVUR_62024A",
+          "distance_nm": 30.85,
+          "bearing_deg": 277.7
+        },
+        {
+          "index": 6,
+          "from": "BUVUR_62024A",
+          "to": "WFX_D2AF56",
+          "distance_nm": 12.159,
+          "bearing_deg": 282.2
+        }
+      ],
+      "waypoints": [
+        {
+          "name": "OLKOB_2ED871",
+          "lat": 29.7377777777,
+          "lon": 107.1927777777,
+          "code": "OLKOB",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "UGOPO_4E032B",
+          "lat": 30.1061111111,
+          "lon": 106.8069444444,
+          "code": "UGOPO",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "URGEG_B33106",
+          "lat": 30.5988888889,
+          "lon": 106.2841666666,
+          "code": "URGEG",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "ESMOL_F34459",
+          "lat": 30.5413888889,
+          "lon": 105.7280555556,
+          "code": "ESMOL",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "BEVNU_16A132",
+          "lat": 30.5247222223,
+          "lon": 105.5713888889,
+          "code": "BEVNU",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "AKOPI_54FECB",
+          "lat": 30.4969444444,
+          "lon": 105.3130555556,
+          "code": "AKOPI",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "BUVUR_62024A",
+          "lat": 30.5641666667,
+          "lon": 104.7216666667,
+          "code": "BUVUR",
+          "type": "DESIGNATED_POINT"
+        },
+        {
+          "name": "WFX_D2AF56",
+          "lat": 30.6066666667,
+          "lon": 104.4916666666,
+          "code": "WFX",
+          "type": "NAVAID"
+        }
+      ]
+    }
+  },
+  "waypoints": [
+    {
+      "name": "ABVIR_8FE987",
+      "code": "ABVIR",
+      "lat": 30.2380555555,
+      "lon": 102.9152777778,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01"
+      ]
+    },
+    {
+      "name": "AKNIP_F6A9D2",
+      "code": "AKNIP",
+      "lat": 30.8647222222,
+      "lon": 107.3872222222,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "V158_F001_C01"
+      ]
+    },
+    {
+      "name": "AKOPI_54FECB",
+      "code": "AKOPI",
+      "lat": 30.4969444444,
+      "lon": 105.3130555556,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "ASIPO_2F4445",
+      "code": "ASIPO",
+      "lat": 28.32,
+      "lon": 106.7508333333,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W3_F001_C01"
+      ]
+    },
+    {
+      "name": "BEVNU_16A132",
+      "code": "BEVNU",
+      "lat": 30.5247222223,
+      "lon": 105.5713888889,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "BHS_74603D",
+      "code": "BHS",
+      "lat": 30.5116666667,
+      "lon": 104.2,
+      "type": "NAVAID",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01",
+        "W237_F001_C01"
+      ]
+    },
+    {
+      "name": "BOKIR_973DF5",
+      "code": "BOKIR",
+      "lat": 31.7677777778,
+      "lon": 104.3497222222,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W179_F001_C01"
+      ]
+    },
+    {
+      "name": "BONPI_7E3533",
+      "code": "BONPI",
+      "lat": 30.7416666666,
+      "lon": 106.0247222223,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W231_F001_C01"
+      ]
+    },
+    {
+      "name": "BUVUR_62024A",
+      "code": "BUVUR",
+      "lat": 30.5641666667,
+      "lon": 104.7216666667,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01",
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "CDX_0D7E89",
+      "code": "CDX",
+      "lat": 31.25,
+      "lon": 104.38,
+      "type": "NAVAID",
+      "routes": [
+        "W179_F001_C01"
+      ]
+    },
+    {
+      "name": "CTU_9E03FB",
+      "code": "CTU",
+      "lat": 30.5733333334,
+      "lon": 103.9433333333,
+      "type": "NAVAID",
+      "routes": [
+        "W237_F001_C01"
+      ]
+    },
+    {
+      "name": "DAGDI_D7FFEA",
+      "code": "DAGDI",
+      "lat": 30.0013888889,
+      "lon": 104.7841666666,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01"
+      ]
+    },
+    {
+      "name": "DS_81EF27",
+      "code": "DS",
+      "lat": 30.2,
+      "lon": 106.8483333333,
+      "type": "NAVAID",
+      "routes": [
+        "W3_F001_C01"
+      ]
+    },
+    {
+      "name": "EKOKA_52160A",
+      "code": "EKOKA",
+      "lat": 30.6475,
+      "lon": 105.3652777778,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W231_F001_C01"
+      ]
+    },
+    {
+      "name": "ESMOL_F34459",
+      "code": "ESMOL",
+      "lat": 30.5413888889,
+      "lon": 105.7280555556,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "HLC_BA6260",
+      "code": "HLC",
+      "lat": 30.3016666667,
+      "lon": 103.695,
+      "type": "NAVAID",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01"
+      ]
+    },
+    {
+      "name": "IDBOR_57A0D1",
+      "code": "IDBOR",
+      "lat": 29.3341666666,
+      "lon": 104.8575,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01",
+        "W237_F001_C01"
+      ]
+    },
+    {
+      "name": "IGNAK_F198DF",
+      "code": "IGNAK",
+      "lat": 29.2719444445,
+      "lon": 104.2619444444,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W179_F001_C01"
+      ]
+    },
+    {
+      "name": "IGUNI_B55D63",
+      "code": "IGUNI",
+      "lat": 29.1255555556,
+      "lon": 104.9627777778,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01"
+      ]
+    },
+    {
+      "name": "IPLOL_7E9E36",
+      "code": "IPLOL",
+      "lat": 30.1394444444,
+      "lon": 104.41,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W179_F001_C01",
+        "W237_F001_C01"
+      ]
+    },
+    {
+      "name": "IVSOL_4ABDCF",
+      "code": "IVSOL",
+      "lat": 30.3522222222,
+      "lon": 106.9716666667,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W180_F001_C01"
+      ]
+    },
+    {
+      "name": "JTG_066E69",
+      "code": "JTG",
+      "lat": 30.8716666667,
+      "lon": 104.39,
+      "type": "NAVAID",
+      "routes": [
+        "W179_F001_C01"
+      ]
+    },
+    {
+      "name": "LEVTO_E03408",
+      "code": "LEVTO",
+      "lat": 28.9494444444,
+      "lon": 105.0516666667,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01"
+      ]
+    },
+    {
+      "name": "MEXAD_93D93E",
+      "code": "MEXAD",
+      "lat": 31.78,
+      "lon": 104.6383333333,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01"
+      ]
+    },
+    {
+      "name": "MUDEL_207139",
+      "code": "MUDEL",
+      "lat": 30.2705555556,
+      "lon": 103.3016666667,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01"
+      ]
+    },
+    {
+      "name": "OGUBO_DFA73D",
+      "code": "OGUBO",
+      "lat": 29.4925,
+      "lon": 106.9613888889,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W180_F001_C01"
+      ]
+    },
+    {
+      "name": "OLKOB_2ED871",
+      "code": "OLKOB",
+      "lat": 29.7377777777,
+      "lon": 107.1927777777,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "OVSUS_576399",
+      "code": "OVSUS",
+      "lat": 29.9766666667,
+      "lon": 106.7522222222,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W3_F001_C01"
+      ]
+    },
+    {
+      "name": "TAMUS_2C94C6",
+      "code": "TAMUS",
+      "lat": 30.7011111111,
+      "lon": 106.9675,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "V158_F001_C01",
+        "W180_F001_C01"
+      ]
+    },
+    {
+      "name": "UBKER_750E0D",
+      "code": "UBKER",
+      "lat": 31.0480555555,
+      "lon": 104.6672222223,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01"
+      ]
+    },
+    {
+      "name": "UGOPO_4E032B",
+      "code": "UGOPO",
+      "lat": 30.1061111111,
+      "lon": 106.8069444444,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W3_F001_C01",
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "URGEG_B33106",
+      "code": "URGEG",
+      "lat": 30.5988888889,
+      "lon": 106.2841666666,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "V158_F001_C01",
+        "W231_F001_C01",
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "VILUS_FE73BE",
+      "code": "VILUS",
+      "lat": 28.6619444444,
+      "lon": 106.9513888889,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W180_F001_C01"
+      ]
+    },
+    {
+      "name": "VIMAM_336D81",
+      "code": "VIMAM",
+      "lat": 30.865,
+      "lon": 104.6877777777,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "B330_F001_C01"
+      ]
+    },
+    {
+      "name": "VINEX_C4B06E",
+      "code": "VINEX",
+      "lat": 30.6075,
+      "lon": 106.6966666666,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "V158_F001_C01"
+      ]
+    },
+    {
+      "name": "WESTI_6E93D8",
+      "code": "WESTI",
+      "lat": 29.4361111111,
+      "lon": 106.7516666667,
+      "type": "DESIGNATED_POINT",
+      "routes": [
+        "W3_F001_C01"
+      ]
+    },
+    {
+      "name": "WFX_D2AF56",
+      "code": "WFX",
+      "lat": 30.6066666667,
+      "lon": 104.4916666666,
+      "type": "NAVAID",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01",
+        "W179_F001_C01",
+        "W231_F001_C01",
+        "W80_F001_C01"
+      ]
+    },
+    {
+      "name": "WLY_869B65",
+      "code": "WLY",
+      "lat": 28.85,
+      "lon": 104.5633333333,
+      "type": "NAVAID",
+      "routes": [
+        "W179_F001_C01"
+      ]
+    }
+  ],
+  "interaction_locations": [
+    {
+      "location_id": "S011",
+      "type": "shared_waypoint",
+      "name": "WFX_D2AF56",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01",
+        "W179_F001_C01",
+        "W231_F001_C01",
+        "W80_F001_C01"
+      ],
+      "locations": {
+        "V69_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            4,
+            5
+          ],
+          "at_node": "V69_F001_C01_N05",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F001_C01_N04",
+              "V69_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F001_C01_N04",
+                "to_node": "V69_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              4,
+              5
+            ]
+          }
+        },
+        "V69_F002_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            0,
+            1
+          ],
+          "at_node": "V69_F002_C01_N00",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F002_C01_N00",
+              "V69_F002_C01_N01"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F002_C01_N00",
+                "to_node": "V69_F002_C01_N01",
+                "segment_step_from_route_start": 0
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              1
+            ]
+          }
+        },
+        "W179_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            4,
+            7
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W179_F001_C01_N05",
+            "W179_F001_C01_N06"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W179_F001_C01_N04",
+              "W179_F001_C01_N05",
+              "W179_F001_C01_N06",
+              "W179_F001_C01_N07"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W179_F001_C01_N04",
+                "to_node": "W179_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              },
+              {
+                "from_node": "W179_F001_C01_N05",
+                "to_node": "W179_F001_C01_N06",
+                "segment_step_from_route_start": 5
+              },
+              {
+                "from_node": "W179_F001_C01_N06",
+                "to_node": "W179_F001_C01_N07",
+                "segment_step_from_route_start": 6
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              4,
+              7
+            ]
+          }
+        },
+        "W231_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            4,
+            5
+          ],
+          "at_node": "W231_F001_C01_N05",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "W231_F001_C01_N04",
+              "W231_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W231_F001_C01_N04",
+                "to_node": "W231_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              4,
+              5
+            ]
+          }
+        },
+        "W80_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            8,
+            9
+          ],
+          "at_node": "W80_F001_C01_N09",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "W80_F001_C01_N08",
+              "W80_F001_C01_N09"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W80_F001_C01_N08",
+                "to_node": "W80_F001_C01_N09",
+                "segment_step_from_route_start": 8
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              8,
+              9
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S002",
+      "type": "shared_waypoint",
+      "name": "BHS_74603D",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01",
+        "W237_F001_C01"
+      ],
+      "locations": {
+        "V69_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            2,
+            5
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "V69_F001_C01_N03",
+            "V69_F001_C01_N04"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F001_C01_N02",
+              "V69_F001_C01_N03",
+              "V69_F001_C01_N04",
+              "V69_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F001_C01_N02",
+                "to_node": "V69_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "V69_F001_C01_N03",
+                "to_node": "V69_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "V69_F001_C01_N04",
+                "to_node": "V69_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              2,
+              5
+            ]
+          }
+        },
+        "V69_F002_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            0,
+            2
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "V69_F002_C01_N00",
+            "V69_F002_C01_N01"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F002_C01_N00",
+              "V69_F002_C01_N01",
+              "V69_F002_C01_N02"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F002_C01_N00",
+                "to_node": "V69_F002_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "V69_F002_C01_N01",
+                "to_node": "V69_F002_C01_N02",
+                "segment_step_from_route_start": 1
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              2
+            ]
+          }
+        },
+        "W237_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            0,
+            2
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W237_F001_C01_N00",
+            "W237_F001_C01_N01"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W237_F001_C01_N00",
+              "W237_F001_C01_N01",
+              "W237_F001_C01_N02"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W237_F001_C01_N00",
+                "to_node": "W237_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "W237_F001_C01_N01",
+                "to_node": "W237_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              2
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S010",
+      "type": "shared_waypoint",
+      "name": "URGEG_B33106",
+      "routes": [
+        "V158_F001_C01",
+        "W231_F001_C01",
+        "W80_F001_C01"
+      ],
+      "locations": {
+        "V158_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            2,
+            4
+          ],
+          "at_node": "V158_F001_C01_N03",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V158_F001_C01_N02",
+              "V158_F001_C01_N03",
+              "V158_F001_C01_N04"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V158_F001_C01_N02",
+                "to_node": "V158_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "V158_F001_C01_N03",
+                "to_node": "V158_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              2,
+              4
+            ]
+          }
+        },
+        "W231_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            0,
+            1
+          ],
+          "at_node": "W231_F001_C01_N00",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "W231_F001_C01_N00",
+              "W231_F001_C01_N01"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W231_F001_C01_N00",
+                "to_node": "W231_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              1
+            ]
+          }
+        },
+        "W80_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            2,
+            5
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W80_F001_C01_N03",
+            "W80_F001_C01_N04"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W80_F001_C01_N02",
+              "W80_F001_C01_N03",
+              "W80_F001_C01_N04",
+              "W80_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W80_F001_C01_N02",
+                "to_node": "W80_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "W80_F001_C01_N03",
+                "to_node": "W80_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "W80_F001_C01_N04",
+                "to_node": "W80_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              2,
+              5
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "X001",
+      "type": "geometric_crossing",
+      "name": null,
+      "routes": [
+        "W180_F001_C01",
+        "W80_F001_C01"
+      ],
+      "locations": {
+        "W180_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            1,
+            4
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W180_F001_C01_N02",
+            "W180_F001_C01_N03"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W180_F001_C01_N01",
+              "W180_F001_C01_N02",
+              "W180_F001_C01_N03",
+              "W180_F001_C01_N04"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W180_F001_C01_N01",
+                "to_node": "W180_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              },
+              {
+                "from_node": "W180_F001_C01_N02",
+                "to_node": "W180_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "W180_F001_C01_N03",
+                "to_node": "W180_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              1,
+              4
+            ]
+          }
+        },
+        "W80_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            0,
+            2
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W80_F001_C01_N00",
+            "W80_F001_C01_N01"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W80_F001_C01_N00",
+              "W80_F001_C01_N01",
+              "W80_F001_C01_N02"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W80_F001_C01_N00",
+                "to_node": "W80_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "W80_F001_C01_N01",
+                "to_node": "W80_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              2
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "X002",
+      "type": "geometric_crossing",
+      "name": null,
+      "routes": [
+        "B330_F001_C01",
+        "W231_F001_C01"
+      ],
+      "locations": {
+        "B330_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            2,
+            5
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "B330_F001_C01_N03",
+            "B330_F001_C01_N04"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "B330_F001_C01_N02",
+              "B330_F001_C01_N03",
+              "B330_F001_C01_N04",
+              "B330_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "B330_F001_C01_N02",
+                "to_node": "B330_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "B330_F001_C01_N03",
+                "to_node": "B330_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "B330_F001_C01_N04",
+                "to_node": "B330_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              2,
+              5
+            ]
+          }
+        },
+        "W231_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            3,
+            5
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W231_F001_C01_N04",
+            "W231_F001_C01_N05"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W231_F001_C01_N03",
+              "W231_F001_C01_N04",
+              "W231_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W231_F001_C01_N03",
+                "to_node": "W231_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "W231_F001_C01_N04",
+                "to_node": "W231_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              3,
+              5
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S001",
+      "type": "shared_waypoint",
+      "name": "ABVIR_8FE987",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01"
+      ],
+      "locations": {
+        "V69_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            0,
+            1
+          ],
+          "at_node": "V69_F001_C01_N00",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F001_C01_N00",
+              "V69_F001_C01_N01"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F001_C01_N00",
+                "to_node": "V69_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              1
+            ]
+          }
+        },
+        "V69_F002_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            4,
+            5
+          ],
+          "at_node": "V69_F002_C01_N05",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F002_C01_N04",
+              "V69_F002_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F002_C01_N04",
+                "to_node": "V69_F002_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              4,
+              5
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S003",
+      "type": "shared_waypoint",
+      "name": "BUVUR_62024A",
+      "routes": [
+        "B330_F001_C01",
+        "W80_F001_C01"
+      ],
+      "locations": {
+        "B330_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            2,
+            5
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "B330_F001_C01_N03",
+            "B330_F001_C01_N04"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "B330_F001_C01_N02",
+              "B330_F001_C01_N03",
+              "B330_F001_C01_N04",
+              "B330_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "B330_F001_C01_N02",
+                "to_node": "B330_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "B330_F001_C01_N03",
+                "to_node": "B330_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "B330_F001_C01_N04",
+                "to_node": "B330_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              2,
+              5
+            ]
+          }
+        },
+        "W80_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            6,
+            9
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W80_F001_C01_N07",
+            "W80_F001_C01_N08"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W80_F001_C01_N06",
+              "W80_F001_C01_N07",
+              "W80_F001_C01_N08",
+              "W80_F001_C01_N09"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W80_F001_C01_N06",
+                "to_node": "W80_F001_C01_N07",
+                "segment_step_from_route_start": 6
+              },
+              {
+                "from_node": "W80_F001_C01_N07",
+                "to_node": "W80_F001_C01_N08",
+                "segment_step_from_route_start": 7
+              },
+              {
+                "from_node": "W80_F001_C01_N08",
+                "to_node": "W80_F001_C01_N09",
+                "segment_step_from_route_start": 8
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              6,
+              9
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S004",
+      "type": "shared_waypoint",
+      "name": "HLC_BA6260",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01"
+      ],
+      "locations": {
+        "V69_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            1,
+            3
+          ],
+          "at_node": "V69_F001_C01_N02",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F001_C01_N01",
+              "V69_F001_C01_N02",
+              "V69_F001_C01_N03"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F001_C01_N01",
+                "to_node": "V69_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              },
+              {
+                "from_node": "V69_F001_C01_N02",
+                "to_node": "V69_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              1,
+              3
+            ]
+          }
+        },
+        "V69_F002_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            1,
+            4
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "V69_F002_C01_N02",
+            "V69_F002_C01_N03"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F002_C01_N01",
+              "V69_F002_C01_N02",
+              "V69_F002_C01_N03",
+              "V69_F002_C01_N04"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F002_C01_N01",
+                "to_node": "V69_F002_C01_N02",
+                "segment_step_from_route_start": 1
+              },
+              {
+                "from_node": "V69_F002_C01_N02",
+                "to_node": "V69_F002_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "V69_F002_C01_N03",
+                "to_node": "V69_F002_C01_N04",
+                "segment_step_from_route_start": 3
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              1,
+              4
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S005",
+      "type": "shared_waypoint",
+      "name": "IDBOR_57A0D1",
+      "routes": [
+        "B330_F001_C01",
+        "W237_F001_C01"
+      ],
+      "locations": {
+        "B330_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            6,
+            9
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "B330_F001_C01_N07",
+            "B330_F001_C01_N08"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "B330_F001_C01_N06",
+              "B330_F001_C01_N07",
+              "B330_F001_C01_N08",
+              "B330_F001_C01_N09"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "B330_F001_C01_N06",
+                "to_node": "B330_F001_C01_N07",
+                "segment_step_from_route_start": 6
+              },
+              {
+                "from_node": "B330_F001_C01_N07",
+                "to_node": "B330_F001_C01_N08",
+                "segment_step_from_route_start": 7
+              },
+              {
+                "from_node": "B330_F001_C01_N08",
+                "to_node": "B330_F001_C01_N09",
+                "segment_step_from_route_start": 8
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              6,
+              9
+            ]
+          }
+        },
+        "W237_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            4,
+            5
+          ],
+          "at_node": "W237_F001_C01_N05",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "W237_F001_C01_N04",
+              "W237_F001_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W237_F001_C01_N04",
+                "to_node": "W237_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              4,
+              5
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S006",
+      "type": "shared_waypoint",
+      "name": "IPLOL_7E9E36",
+      "routes": [
+        "W179_F001_C01",
+        "W237_F001_C01"
+      ],
+      "locations": {
+        "W179_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            3,
+            6
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W179_F001_C01_N04",
+            "W179_F001_C01_N05"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W179_F001_C01_N03",
+              "W179_F001_C01_N04",
+              "W179_F001_C01_N05",
+              "W179_F001_C01_N06"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W179_F001_C01_N03",
+                "to_node": "W179_F001_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "W179_F001_C01_N04",
+                "to_node": "W179_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              },
+              {
+                "from_node": "W179_F001_C01_N05",
+                "to_node": "W179_F001_C01_N06",
+                "segment_step_from_route_start": 5
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              3,
+              6
+            ]
+          }
+        },
+        "W237_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            0,
+            3
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W237_F001_C01_N01",
+            "W237_F001_C01_N02"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W237_F001_C01_N00",
+              "W237_F001_C01_N01",
+              "W237_F001_C01_N02",
+              "W237_F001_C01_N03"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W237_F001_C01_N00",
+                "to_node": "W237_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "W237_F001_C01_N01",
+                "to_node": "W237_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              },
+              {
+                "from_node": "W237_F001_C01_N02",
+                "to_node": "W237_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              3
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S007",
+      "type": "shared_waypoint",
+      "name": "MUDEL_207139",
+      "routes": [
+        "V69_F001_C01",
+        "V69_F002_C01"
+      ],
+      "locations": {
+        "V69_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            0,
+            2
+          ],
+          "at_node": "V69_F001_C01_N01",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F001_C01_N00",
+              "V69_F001_C01_N01",
+              "V69_F001_C01_N02"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F001_C01_N00",
+                "to_node": "V69_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "V69_F001_C01_N01",
+                "to_node": "V69_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              2
+            ]
+          }
+        },
+        "V69_F002_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            2,
+            5
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "V69_F002_C01_N03",
+            "V69_F002_C01_N04"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "V69_F002_C01_N02",
+              "V69_F002_C01_N03",
+              "V69_F002_C01_N04",
+              "V69_F002_C01_N05"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V69_F002_C01_N02",
+                "to_node": "V69_F002_C01_N03",
+                "segment_step_from_route_start": 2
+              },
+              {
+                "from_node": "V69_F002_C01_N03",
+                "to_node": "V69_F002_C01_N04",
+                "segment_step_from_route_start": 3
+              },
+              {
+                "from_node": "V69_F002_C01_N04",
+                "to_node": "V69_F002_C01_N05",
+                "segment_step_from_route_start": 4
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              2,
+              5
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S008",
+      "type": "shared_waypoint",
+      "name": "TAMUS_2C94C6",
+      "routes": [
+        "V158_F001_C01",
+        "W180_F001_C01"
+      ],
+      "locations": {
+        "V158_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            0,
+            3
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "V158_F001_C01_N01",
+            "V158_F001_C01_N02"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "V158_F001_C01_N00",
+              "V158_F001_C01_N01",
+              "V158_F001_C01_N02",
+              "V158_F001_C01_N03"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "V158_F001_C01_N00",
+                "to_node": "V158_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "V158_F001_C01_N01",
+                "to_node": "V158_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              },
+              {
+                "from_node": "V158_F001_C01_N02",
+                "to_node": "V158_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              3
+            ]
+          }
+        },
+        "W180_F001_C01": {
+          "mode": "at_node",
+          "eta_window_steps_from_route_start": [
+            0,
+            1
+          ],
+          "at_node": "W180_F001_C01_N00",
+          "between_nodes": null,
+          "interaction_zone": {
+            "zone_nodes": [
+              "W180_F001_C01_N00",
+              "W180_F001_C01_N01"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W180_F001_C01_N00",
+                "to_node": "W180_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "location_id": "S009",
+      "type": "shared_waypoint",
+      "name": "UGOPO_4E032B",
+      "routes": [
+        "W3_F001_C01",
+        "W80_F001_C01"
+      ],
+      "locations": {
+        "W3_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            4,
+            6
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W3_F001_C01_N05",
+            "W3_F001_C01_N06"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W3_F001_C01_N04",
+              "W3_F001_C01_N05",
+              "W3_F001_C01_N06"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W3_F001_C01_N04",
+                "to_node": "W3_F001_C01_N05",
+                "segment_step_from_route_start": 4
+              },
+              {
+                "from_node": "W3_F001_C01_N05",
+                "to_node": "W3_F001_C01_N06",
+                "segment_step_from_route_start": 5
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              4,
+              6
+            ]
+          }
+        },
+        "W80_F001_C01": {
+          "mode": "between_nodes",
+          "eta_window_steps_from_route_start": [
+            0,
+            3
+          ],
+          "at_node": null,
+          "between_nodes": [
+            "W80_F001_C01_N01",
+            "W80_F001_C01_N02"
+          ],
+          "interaction_zone": {
+            "zone_nodes": [
+              "W80_F001_C01_N00",
+              "W80_F001_C01_N01",
+              "W80_F001_C01_N02",
+              "W80_F001_C01_N03"
+            ],
+            "zone_segments": [
+              {
+                "from_node": "W80_F001_C01_N00",
+                "to_node": "W80_F001_C01_N01",
+                "segment_step_from_route_start": 0
+              },
+              {
+                "from_node": "W80_F001_C01_N01",
+                "to_node": "W80_F001_C01_N02",
+                "segment_step_from_route_start": 1
+              },
+              {
+                "from_node": "W80_F001_C01_N02",
+                "to_node": "W80_F001_C01_N03",
+                "segment_step_from_route_start": 2
+              }
+            ],
+            "eta_window_steps_from_route_start": [
+              0,
+              3
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "interaction_edges": [
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "V69_F002_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        4,
+        5
+      ],
+      "eta_b": [
+        0,
+        1
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "W179_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        4,
+        5
+      ],
+      "eta_b": [
+        4,
+        7
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "W231_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        4,
+        5
+      ],
+      "eta_b": [
+        4,
+        5
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        4,
+        5
+      ],
+      "eta_b": [
+        8,
+        9
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F002_C01",
+      "route_b": "W179_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        0,
+        1
+      ],
+      "eta_b": [
+        4,
+        7
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F002_C01",
+      "route_b": "W231_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        0,
+        1
+      ],
+      "eta_b": [
+        4,
+        5
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F002_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        0,
+        1
+      ],
+      "eta_b": [
+        8,
+        9
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "W179_F001_C01",
+      "route_b": "W231_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "at_node",
+      "eta_a": [
+        4,
+        7
+      ],
+      "eta_b": [
+        4,
+        5
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "W179_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "at_node",
+      "eta_a": [
+        4,
+        7
+      ],
+      "eta_b": [
+        8,
+        9
+      ]
+    },
+    {
+      "location_id": "S011",
+      "location_name": "WFX_D2AF56",
+      "location_type": "shared_waypoint",
+      "route_a": "W231_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        4,
+        5
+      ],
+      "eta_b": [
+        8,
+        9
+      ]
+    },
+    {
+      "location_id": "S002",
+      "location_name": "BHS_74603D",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "V69_F002_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        2,
+        5
+      ],
+      "eta_b": [
+        0,
+        2
+      ]
+    },
+    {
+      "location_id": "S002",
+      "location_name": "BHS_74603D",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "W237_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        2,
+        5
+      ],
+      "eta_b": [
+        0,
+        2
+      ]
+    },
+    {
+      "location_id": "S002",
+      "location_name": "BHS_74603D",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F002_C01",
+      "route_b": "W237_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        0,
+        2
+      ],
+      "eta_b": [
+        0,
+        2
+      ]
+    },
+    {
+      "location_id": "S010",
+      "location_name": "URGEG_B33106",
+      "location_type": "shared_waypoint",
+      "route_a": "V158_F001_C01",
+      "route_b": "W231_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        2,
+        4
+      ],
+      "eta_b": [
+        0,
+        1
+      ]
+    },
+    {
+      "location_id": "S010",
+      "location_name": "URGEG_B33106",
+      "location_type": "shared_waypoint",
+      "route_a": "V158_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        2,
+        4
+      ],
+      "eta_b": [
+        2,
+        5
+      ]
+    },
+    {
+      "location_id": "S010",
+      "location_name": "URGEG_B33106",
+      "location_type": "shared_waypoint",
+      "route_a": "W231_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "at_node",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        0,
+        1
+      ],
+      "eta_b": [
+        2,
+        5
+      ]
+    },
+    {
+      "location_id": "X001",
+      "location_name": null,
+      "location_type": "geometric_crossing",
+      "route_a": "W180_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        1,
+        4
+      ],
+      "eta_b": [
+        0,
+        2
+      ]
+    },
+    {
+      "location_id": "X002",
+      "location_name": null,
+      "location_type": "geometric_crossing",
+      "route_a": "B330_F001_C01",
+      "route_b": "W231_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        2,
+        5
+      ],
+      "eta_b": [
+        3,
+        5
+      ]
+    },
+    {
+      "location_id": "S001",
+      "location_name": "ABVIR_8FE987",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "V69_F002_C01",
+      "mode_a": "at_node",
+      "mode_b": "at_node",
+      "eta_a": [
+        0,
+        1
+      ],
+      "eta_b": [
+        4,
+        5
+      ]
+    },
+    {
+      "location_id": "S003",
+      "location_name": "BUVUR_62024A",
+      "location_type": "shared_waypoint",
+      "route_a": "B330_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        2,
+        5
+      ],
+      "eta_b": [
+        6,
+        9
+      ]
+    },
+    {
+      "location_id": "S004",
+      "location_name": "HLC_BA6260",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "V69_F002_C01",
+      "mode_a": "at_node",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        1,
+        3
+      ],
+      "eta_b": [
+        1,
+        4
+      ]
+    },
+    {
+      "location_id": "S005",
+      "location_name": "IDBOR_57A0D1",
+      "location_type": "shared_waypoint",
+      "route_a": "B330_F001_C01",
+      "route_b": "W237_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "at_node",
+      "eta_a": [
+        6,
+        9
+      ],
+      "eta_b": [
+        4,
+        5
+      ]
+    },
+    {
+      "location_id": "S006",
+      "location_name": "IPLOL_7E9E36",
+      "location_type": "shared_waypoint",
+      "route_a": "W179_F001_C01",
+      "route_b": "W237_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        3,
+        6
+      ],
+      "eta_b": [
+        0,
+        3
+      ]
+    },
+    {
+      "location_id": "S007",
+      "location_name": "MUDEL_207139",
+      "location_type": "shared_waypoint",
+      "route_a": "V69_F001_C01",
+      "route_b": "V69_F002_C01",
+      "mode_a": "at_node",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        0,
+        2
+      ],
+      "eta_b": [
+        2,
+        5
+      ]
+    },
+    {
+      "location_id": "S008",
+      "location_name": "TAMUS_2C94C6",
+      "location_type": "shared_waypoint",
+      "route_a": "V158_F001_C01",
+      "route_b": "W180_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "at_node",
+      "eta_a": [
+        0,
+        3
+      ],
+      "eta_b": [
+        0,
+        1
+      ]
+    },
+    {
+      "location_id": "S009",
+      "location_name": "UGOPO_4E032B",
+      "location_type": "shared_waypoint",
+      "route_a": "W3_F001_C01",
+      "route_b": "W80_F001_C01",
+      "mode_a": "between_nodes",
+      "mode_b": "between_nodes",
+      "eta_a": [
+        4,
+        6
+      ],
+      "eta_b": [
+        0,
+        3
+      ]
+    }
+  ],
+  "opposite_direction_route_pairs": [
+    {
+      "route_a": "V69_F001_C01",
+      "route_b": "V69_F002_C01",
+      "relationship": "same_physical_corridor_opposite_direction"
+    }
+  ],
+  "route_min_required_fl": {
+    "B330_F001_C01": 94,
+    "V158_F001_C01": 60,
+    "V69_F001_C01": 128,
+    "V69_F002_C01": 128,
+    "W179_F001_C01": 122,
+    "W180_F001_C01": 94,
+    "W231_F001_C01": 55,
+    "W237_F001_C01": 55,
+    "W3_F001_C01": 84,
+    "W80_F001_C01": 76
+  },
+  "sampling_policy": {
+    "schema": "real_sector_sampling_policy_v1",
+    "purpose": "Use real route geometry and interaction topology only; discard LLM-generated traffic scenarios.",
+    "keep_fields": [
+      "sector_id",
+      "route_set_id",
+      "directed_routes",
+      "routes",
+      "waypoints",
+      "interaction_locations",
+      "interaction_edges",
+      "opposite_direction_route_pairs",
+      "route_min_required_fl"
+    ],
+    "drop_fields": [
+      "generated_scenario",
+      "conflict_report_summary",
+      "hashes.generated_scenario",
+      "api_response",
+      "raw_model_output",
+      "pipeline_run",
+      "trajectory_samples",
+      "experiment_protocol traffic generation assumptions"
+    ],
+    "do_not_treat_as_real_distribution": [
+      "spawn_time distribution in generated_scenario",
+      "initial_flight_level distribution in generated_scenario",
+      "route usage distribution in generated_scenario",
+      "number of aircraft fixed to 12 in generated_scenario",
+      "scenario_length_steps fixed to 12",
+      "allowed_flight_levels limited to [280, 300, 320]",
+      "execution_speed_token M0.679"
+    ],
+    "sampling_defaults": {
+      "initial_flight_levels": [
+        280,
+        300,
+        320,
+        340,
+        360,
+        380
+      ],
+      "safe_fl_min": 270,
+      "safe_fl_max": 390,
+      "safe_fl_step": 10,
+      "speed_min_kt": 250,
+      "speed_max_kt": 330,
+      "nominal_speed_kt": 300,
+      "speed_actions_kt": [
+        -30,
+        -20,
+        20,
+        30
+      ],
+      "altitude_actions_fl_delta": [
+        -30,
+        -20,
+        -10,
+        10,
+        20,
+        30
+      ],
+      "target_fl_range": [
+        270,
+        390
+      ],
+      "target_fl_step": 10,
+      "vertical_rate_fpm": 2000,
+      "horizontal_min_sep_nm": 5.0,
+      "vertical_min_sep_ft": 1000,
+      "verify_hsep_nm": 7.0,
+      "lookahead_min": 20.0,
+      "acceptance_replay_min": 40.0
+    },
+    "realism_rules": [
+      "Route direction is fixed by directed_routes and waypoint order.",
+      "Opposite-direction same-corridor pairs should be treated as head-on risk if same flight level and overlapping in time.",
+      "Route minimum required flight level is retained; sampled initial and target FL must be >= route_min_required_fl.",
+      "Use interaction ETA windows only as coarse conflict seeding; validate final samples in BlueSky continuous simulation.",
+      "Use generated scenarios only as examples to inspect compiler format, not as training labels or traffic priors."
+    ]
+  },
+  "notes": [
+    "This file intentionally omits generated_scenario and conflict_report_summary.",
+    "Use interaction topology for scenario generation, then verify in BlueSky before accepting labels."
+  ]
+}
