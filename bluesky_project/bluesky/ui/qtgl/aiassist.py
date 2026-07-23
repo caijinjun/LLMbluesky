@@ -1595,6 +1595,9 @@ class AiAssistPanel(QWidget):
         self._autoload_done = True
         self._ensure_stream_connection()
         self._log_text("仿真节点已就绪，可重置扇区并加载动态场景。")
+        if os.environ.get("ATC_AUTO_START") == "1":
+            self.reset_sector()
+            QTimer.singleShot(800, self.start_auto_traffic)
 
     def base_sector_commands(self):
         # Keep visual initialization light. Extra route polylines and waypoint labels
@@ -2325,17 +2328,6 @@ class AiAssistPanel(QWidget):
         output = api_result.get("output") or {}
         selected_ids = output.get("actions") or []
         safe, commands, verification = self._verify_model_solution(graph, state_by_id, action_lookup, selected_ids)
-        candidate_actions = [
-            {
-                "aircraft": acid,
-                "kind": action["kind"],
-                "target_fl": action["target_fl"],
-                "target_speed": action["target_speed"],
-                "label": action["label"],
-            }
-            for acid in order
-            for action in actions_by_acid[acid]
-        ]
         solver = {
             "method": "llm_action_selector_verified" if safe else "llm_action_selector_rejected",
             "preference": self.preference_combo.currentText() if hasattr(self, "preference_combo") else "speed_first",
@@ -2490,6 +2482,17 @@ class AiAssistPanel(QWidget):
             deadline = monotonic() + self.SOLVER_TIME_BUDGET_SEC
             timed_out = False
             solution = search({})
+        candidate_actions = [
+            {
+                "aircraft": acid,
+                "kind": action["kind"],
+                "target_fl": action["target_fl"],
+                "target_speed": action["target_speed"],
+                "label": action["label"],
+            }
+            for acid in order
+            for action in actions_by_acid[acid]
+        ]
         solver = {
             "method": "discrete_constraint_search",
             "preference": self.preference_combo.currentText() if hasattr(self, "preference_combo") else "speed_first",
